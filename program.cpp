@@ -4,7 +4,7 @@ using namespace std;
 #define REP(i, n) for(int i = 0; i < (n); i++)
 
 struct cvor {
-	int tip = 0; 
+	int tip = 0;
 	// 0 - undefined, 1 - int, 2 - char, 3 - const(int), 4 - const(char)
 	// 5 - niz(int), 6 - niz(char), 7 - niz(const(int)), 8 - niz(const(char))
 	// 9 - pov, 10 - funkcija(void -> pov), 11 - funkcija(params -> pov), 12 - void
@@ -20,6 +20,7 @@ struct cvor {
 	// zavrsni
 	int red = -1;
 	string jedinka = "";
+	
 	cvor(string _uniformni_znak) {
 		uniformni_znak = _uniformni_znak;
 	}
@@ -33,14 +34,52 @@ struct cvor {
 void unisti_stablo(cvor *tr) {
 	for(cvor *dijete : tr -> djeca) unisti_stablo(dijete);
 	delete tr;
-	return;
 }
 
 void kraj(cvor *zadnji) {
 	// bla bla
+	exit(0);
 }
 
-map <string, vector <cvor> > varijable;
+int br_bloka = 0;
+map <string, vector <pair <int, cvor*> > > varijable; // za svako ime varijable pamtim brojeve blokova deklaracija i info o njoj
+
+int br_petlji = 0;
+vector <int> tipovi_povratnih_vrijednosti;
+
+vector <string> daj_uniformne_znakove_djece(cvor *neki) {
+	vector <string> ret;
+	for(cvor *dijete : neki -> djeca) ret.push_back(dijete -> uniformni_znak);
+	return ret;
+}
+
+bool ide_implicitna_pretvorba(int tip1, int tip2) {
+	if(tip1 == 1) return tip2 == 1 || tip2 == 3;
+	else if(tip1 == 2) return tip2 == 1 || tip2 == 2 || tip2 == 3 || tip2 == 4;
+	else if(tip1 == 3) return tip2 == 1 || tip2 == 3;
+	else if(tip1 == 4) return tip2 == 1 || tip2 == 2 || tip2 == 3 || tip2 == 4;
+	else if(tip1 == 5) return tip2 == 5 || tip2 == 7;
+	else if(tip1 == 6) return tip2 == 6 || tip2 == 8;
+	else if(tip1 == 7) return tip2 == 7;
+	else if(tip1 == 8) return tip2 == 8;
+	else return 0;
+}
+
+void greska(cvor *cv) {
+	cout << "nije prepoznat ni jedan oblik za unifomni znak " << cv -> uniformni_znak << endl;
+	exit(1);
+}
+
+// deklaracije svih provjernih funkcija
+void slozena_naredba(cvor *cv);
+void lista_naredbi(cvor *cv);
+void naredba(cvor *cv);
+void izraz_naredba(cvor *cv);
+void naredba_grananja(cvor *cv);
+void naredba_petlje(cvor *cv);
+void naredba_skoka(cvor *cv);
+void prijevodna_jedinica(cvor *cv);
+//
 
 //
 // IZRAZI
@@ -588,6 +627,152 @@ void izraz_pridruzivanja(cvor *cv) {
 // end
 //
 
+//
+// NAREDBENA STRUKTURA PROGRAMA
+//
+// begin
+//
+void slozena_naredba(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	br_bloka++;
+	if(dj[1] == "<lista_naredbi>") {
+		lista_naredbi(cv -> djeca[1]);
+	}
+	else if(dj[1] == "lista_deklaracija") {
+		lista_deklaracija(cv -> djeca[1]);
+		lista_naredbi(cv -> djeca[2]);
+	}
+	else greska(cv);
+	 //ovo se moze optimizirat tako da kad deklariramo novu varijablu stavimo to u globalni vektor i onda tu micemo
+	map <string, vector <pair <int, cvor*> > >::iterator it = varijable.begin();
+	while(it != varijable.end()) {
+		while((it -> second).size() && (it -> second).back().second == br_bloka) (it -> second).pop_back();
+		it++;
+	}
+	
+	br_bloka--;
+}
+
+void lista_naredbi(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if(dj[0] == "<naredba>") {
+		naredba(cv -> djeca[0]);
+	}
+	else if(dj[0] == "<lista_naredbi>") {
+		lista_naredbi(cv -> djeca[0]);
+		naredba(cv -> djeca[1]);
+	}
+	else greska(cv);
+}
+
+void naredba(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if(dj[0] == "<slozena_naredba>") {
+		slozena_naredba(cv -> djeca[0]);
+	}
+	else if(dj[0] == "<izraz_naredba>") {
+		izraz_naredba(cv -> djeca[0]);
+	}
+	else if(dj[0] == "<naredba_grananja>") {
+		naredba_grananja(cv -> djeca[0]);
+	}
+	else if(dj[0] == "<naredba_petlje>") {
+		naredba_petlje(cv -> djeca[0]);
+	}
+	else if(dj[0] == "<naredba_skoka>") {
+		naredba_skoka(cv -> djeca[0]);
+	}
+	else greska(cv);
+}
+
+void izraz_naredba(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if(dj[0] == "TOCKAZAREZ") {
+		cv -> tip = 1;
+	}
+	else if(dj[0] == "<izraz>") {
+		izraz(cv -> djeca[0]);
+		cv -> tip = cv -> djeca[0] -> tip;
+	}
+	else greska(cv);
+}
+
+void naredba_grananja(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if((int)dj.size() == 5) {
+		izraz(cv -> djeca[2]);
+		if(!ide_implicitna_pretvorba(cv -> djeca[2] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
+		naredba(cv -> djeca[4]);
+	}
+	else if((int)dj.size() == 7) {
+		izraz(cv -> djeca[2]);
+		if(!ide_implicitna_pretvorba(cv -> djeca[2] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
+		naredba(cv -> djeca[4]);
+		naredba(cv -> djeca[6]);
+	}
+	else greska(cv);
+}
+
+void naredba_petlje(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if(dj[4] == "<naredba>") {
+		izraz(cv -> djeca[2]);
+		if(!ide_implicitna_pretvorba(cv -> djeca[2] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
+		br_petlji++;
+		naredba(cv -> djeca[4]);
+	}
+	else if(dj[4] == "D_ZAGRADA") {
+		izraz_naredba(cv -> djeca[2]);
+		izraz_naredba(cv -> djeca[3]);
+		if(!ide_implicitna_pretvorba(cv -> djeca[3] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
+		br_petlji++;
+		naredba(cv -> djeca[5]);
+	}
+	else if(dj[4] == "<izraz>") {
+		izraz_naredba(cv -> djeca[2]);
+		izraz_naredba(cv -> djeca[3]);
+		if(!ide_implicitna_pretvorba(cv -> djeca[3] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
+		izraz(cv -> djeca[4]);
+		br_petlji++;
+		naredba(cv -> djeca[6]);
+		
+	}
+	else greska(cv);
+	br_petlji--;
+}
+
+void naredba_skoka(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if(dj[0] == "KR_CONTINUE" || dj[0] == "KR_BREAK") {
+		if(!br_petlji) kraj(cv);
+	}
+	else if(dj[1] == "TOCKAZAREZ") {
+		if(!tipovi_povratnih_vrijednosti.size() || tipovi_povratnih_vrijednosti.back() != 12) kraj(cv); // ako nema fje ili ako ne vraca void
+	}
+	else if(dj[1] == "<izraz>") {
+		izraz(cv -> djeca[1]);
+		if(!tipovi_povratnih_vrijednosti.size() || !ide_implicitna_pretvorba(cv -> djeca[1] -> tip, tipovi_povratnih_vrijednosti.back())) kraj(cv);
+	}
+	else greska(cv);
+}
+
+void prijevodna_jedinica(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if(dj[0] == "<vanjska_deklaracija>") {
+		vanjska_deklaracija(cv -> djeca[0]);
+	}
+	else if(dj[0] == "<prijevodna_jedinica>") {
+		prijevodna_jedinica(cv -> djeca[0]);
+		vanjska_deklaracija(cv -> djeca[1]);
+	}
+	else greska(cv);
+}
+
+//
+// NAREDBENA STRUKTURA PROGRAMA
+//
+// end
+//
 void rek(cvor *rod) {
 	//
 }
