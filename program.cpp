@@ -87,6 +87,24 @@ void greska(cvor *cv) {
 }
 
 // deklaracije svih provjernih funkcija
+void primarni_izraz(cvor *cv);
+void postfiks_izraz(cvor *cv);
+void lista_argumenata(cvor *cv);
+void unarni_izraz(cvor *cv);
+void cast_izraz(cvor *cv);
+void ime_tipa(cvor *cv);
+void specifikator_tipa(cvor *cv);
+void multiplikativni_izraz(cvor *cv);
+void aditivni_izraz(cvor *cv);
+void odnosni_izraz(cvor *cv);
+void jednakosni_izraz(cvor *cv);
+void bin_i_izraz(cvor *cv);
+void bin_xili_izraz(cvor *cv);
+void bin_ili_izraz(cvor *cv);
+void log_i_izraz(cvor *cv);
+void log_ili_izraz(cvor *cv);
+void izraz_pridruzivanja(cvor *cv);
+//
 void slozena_naredba(cvor *cv);
 void lista_naredbi(cvor *cv);
 void naredba(cvor *cv);
@@ -208,9 +226,6 @@ void postfiks_izraz(cvor *cv) {
 		cv->djeca[1]->uniformni_znak == "L_UGL_ZAGRADA" &&
 		cv->djeca[2]->uniformni_znak == "IZRAZ" &&
 		cv->djeca[3]->uniformni_znak == "D_UGL_ZAGRADA") {
-		//
-		// TODO
-		//
 		postfiks_izraz(cv->djeca[0]);
 		if (!(cv->djeca[0]->tip >= 5 && cv->djeca[0]->tip <= 8)) {
 			kraj(cv);
