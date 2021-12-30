@@ -3,6 +3,8 @@ using namespace std;
 
 #define REP(i, n) for(int i = 0; i < (n); i++)
 
+// TODO ako je petlja jednoretcana bez {}, trenutni analizator ne dopusta deklaraciju u novom lokalnom djelokrugu
+
 struct cvor {
 	int tip = 0;
 	// 0 - undefined, 1 - int, 2 - char, 3 - const(int), 4 - const(char)
@@ -50,6 +52,7 @@ map <string, vector <pair <int, pair <vector <int>, int> > > > deklaracije;
 map <string, bool> definirana_funkcija;
 map <string, bool> deklarirana_funkcija;
 map <string, pair <vector <int>, int> > deklaracija_funkcije; // TODO provjeri defaultnu vrijednost za cvor*
+vector <string> deklarirane_funkcije;
 
 int br_petlji = 0;
 vector <int> tipovi_povratnih_vrijednosti;
@@ -83,7 +86,6 @@ void greska(cvor *cv) {
 	exit(1);
 }
 
-{
 // deklaracije svih provjernih funkcija
 void slozena_naredba(cvor *cv);
 void lista_naredbi(cvor *cv);
@@ -672,12 +674,16 @@ void slozena_naredba(cvor *cv) {
 	}
 	else greska(cv);
 	 //ovo se moze optimizirat tako da kad deklariramo novu varijablu stavimo to u globalni vektor i onda tu micemo
-	map <string, vector <pair <int, cvor*> > >::iterator it = varijable.begin();
+	map <string, vector <pair <int, int> > >::iterator it = varijable.begin();
 	while(it != varijable.end()) {
 		while((it -> second).size() && (it -> second).back().first == br_bloka) (it -> second).pop_back();
 		it++;
 	}
-	
+	map <string, vector <pair <int, pair <vector <int>, int> > > >::iterator itd = deklaracije.begin();
+	while(itd != deklaracije.end()) {
+		while((itd -> second).size() && (itd -> second).back().first == br_bloka) (itd -> second).pop_back();
+		itd++;
+	}
 	br_bloka--;
 }
 
@@ -801,7 +807,7 @@ void prijevodna_jedinica(cvor *cv) {
 //
 // end
 //
-}
+
 //
 // DEKLARACIJE I DEFINICIJE
 //
@@ -933,6 +939,7 @@ void init_deklarator(cvor *cv) {
 			if(!ide_implicitna_pretvorba(cv -> djeca[2] -> tip, cv -> djeca[0] -> tip)) kraj(cv); // u uputama forsiraju provjeru u T, ali je to identicno ko i u const(T)
 		}
 		else if(cv -> djeca[0] -> tip >= 5 && cv -> djeca[0] -> tip <= 8) {
+			if(cv -> djeca[2] -> br_elem == -1) kraj(cv); // ako u inicijalizatoru nisam postavio br_elem jer nisam nasao niz_znakova
 			if(cv -> djeca[2] -> br_elem > cv -> djeca[0] -> br_elem) kraj(cv);
 			int T = cv -> djeca[0] -> tip - 4;
 			REP(i, (int)(cv -> djeca[2] -> tipovi).size()) {
@@ -940,6 +947,111 @@ void init_deklarator(cvor *cv) {
 			}
 		}
 		else kraj(cv);
+	}
+	else greska(cv);
+}
+
+void izravni_deklarator(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if((int)dj.size() == 1) {
+		cv -> tip = cv -> ntip;
+		if(cv -> ntip == 12) kraj(cv);
+		string ime = cv -> djeca[0] -> jedinka;
+		if(varijable[ime].size() && varijable[ime].back().first == br_bloka) kraj(cv);
+		varijable[ime].push_back(make_pair(br_bloka, cv -> tip));
+	}
+	else if(dj[2] == "BROJ") {
+		cv -> tip = cv -> ntip + 4;
+		if(cv -> ntip == 12) kraj(cv);
+		string ime = cv -> djeca[0] -> jedinka;
+		if(varijable[ime].size() && varijable[ime].back().first == br_bloka) kraj(cv);
+		string sbroj = cv -> djeca[2] -> jedinka;
+		int broj = 0;
+		if((int)sbroj.size() > 4) kraj(cv);
+		REP(i, (int)sbroj.size()) {
+			broj *= 10;
+			broj += sbroj[i] - '0';
+		}
+		if(broj <= 0 || broj > 1024) kraj(cv);
+		cv -> br_elem = broj;
+		varijable[ime].push_back(make_pair(br_bloka, cv -> tip));
+	}
+	else if(dj[2] == "KR_VOID") {
+		cv -> tip = 10; // skroz nepotrebno
+		string ime = cv -> djeca[0] -> jedinka;
+		if(deklaracije[ime].size() && deklaracije[ime].back().first == br_bloka) {
+			if(deklaracije[ime].back().second.first.size() || deklaracije[ime].back().second.second != cv -> ntip) kraj(cv);
+		}
+		else {
+			deklaracije[ime].push_back(make_pair(br_bloka, make_pair(vector <int>(), cv -> ntip)));
+			deklarirane_funkcije.push_back(ime);
+		}
+	}
+	else if(dj[2] == "<lista_parametara>") {
+		cv -> tip = 11; // skroz nepotrebno
+		lista_parametara(cv -> djeca[2]);
+		string ime = cv -> djeca[0] -> jedinka;
+		vector <int> tipovi = cv -> djeca[2] -> tipovi;
+		if(deklaracije[ime].size() && deklaracije[ime].back().first == br_bloka) {
+			if(!vektori_jednaki(tipovi, deklaracije[ime].back().second.first) || deklaracije[ime].back().second.second != cv -> ntip) kraj(cv);
+		}
+		else {
+			deklaracije[ime].push_back(make_pair(br_bloka, make_pair(tipovi, cv -> ntip)));
+			deklarirane_funkcije.push_back(ime);
+		}
+	}
+	else greska(cv);
+}
+
+void inicijalizator(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if(dj[0] == "<izraz_pridruzivanja>") {
+		izraz_pridruzivanja(cv -> djeca[0]);
+		bool ok = 1;
+		cvor *tr = cv -> djeca[0];
+		REP(i, 14) {
+			if((int)(tr -> djeca).size() != 1) {
+				ok = 0;
+				break;
+			}
+			tr = tr -> djeca[0];
+		}
+		if(ok && tr -> uniformni_znak == "NIZ_ZNAKOVA") {
+			string niz_znakova = tr -> jedinka;
+			int br = 0;
+			for(int i = 1; i < (int)niz_znakova.size() - 1; i++) { // racunanje duljine niza znakova, provjerit
+				br++;
+				if(niz_znakova[i] == '\\') i++;
+			}
+			cv -> br_elem = br + 1; // br_elem je za 1 veci od tipovi zbog \0
+			cv -> tipovi = vector <int>(br, 2);
+		}
+		else {
+			cv -> tip = cv -> djeca[0] -> tip;
+		}
+	}
+	else if(dj[0] == "L_VIT_ZAGRADA") {
+		lista_izraza_pridruzivanja(cv -> djeca[1]);
+		cv -> br_elem = cv -> djeca[1] -> br_elem;
+		cv -> tipovi = cv -> djeca[1] -> tipovi;
+	}
+	else greska(cv);
+}
+
+void lista_izraza_pridruzivanja(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if(dj[0] == "<izraz_pridruzivanja>") {
+		izraz_pridruzivanja(cv -> djeca[0]);
+		vector <int> tipovi = {cv -> djeca[0] -> tip};
+		cv -> tipovi = tipovi;
+		cv -> br_elem = 1;
+	}
+	else if(dj[0] == "<lista_izraza_pridruzivanja>") {
+		lista_izraza_pridruzivanja(cv -> djeca[0]);
+		izraz_pridruzivanja(cv -> djeca[2]);
+		cv -> tipovi = cv -> djeca[0] -> tipovi;
+		(cv -> tipovi).push_back(cv -> djeca[2] -> tip);
+		cv -> br_elem = cv -> djeca[0] -> br_elem + 1;
 	}
 	else greska(cv);
 }
@@ -989,6 +1101,17 @@ int main() { //TODO povecaj brojac petlji na pravom mjestu za break i continue
 		tr -> rod = rod.back().first;
 		rod.push_back(make_pair(tr, br));
 		//cout << tr -> rod -> uniformni_znak << " -> " << tr -> uniformni_znak << endl;
+	}
+	prijevodna_jedinica(root);
+	if(!deklarirana_funkcija["main"] || deklaracija_funkcije["main"].first.size() || deklaracija_funkcije["main"].second != 1) {
+		cout << "main\n";
+		return 0;
+	}
+	REP(i, (int)deklarirane_funkcije.size()) {
+		if(!definirana_funkcija[deklarirane_funkcije[i]]) {
+			cout << "funkcija\n";
+			return 0;
+		}
 	}
 	unisti_stablo(root);
 	return 0;
