@@ -920,13 +920,23 @@ void init_deklarator(cvor *cv) {
 	if((int)dj.size() == 1) {
 		cv -> djeca[0] -> ntip = cv -> ntip;
 		izravni_deklarator(cv -> djeca[0]);
-		if()
+		if(cv -> djeca[0] -> tip == 3 || cv -> djeca[0] -> tip == 4 || cv -> djeca[0] -> tip == 7 || cv -> djeca[0] -> tip == 8) kraj(cv);
 	}
 	else if((int)dj.size() == 3) {
 		cv -> djeca[0] -> ntip = cv -> ntip;
-		lista_init_deklaratora(cv -> djeca[0]);
-		cv -> djeca[2] -> ntip = cv -> ntip;
-		init_deklarator(cv -> djeca[2]);
+		izravni_deklarator(cv -> djeca[0]);
+		inicijalizator(cv -> djeca[2]);
+		if(cv -> djeca[0] -> tip >= 1 && cv -> djeca[0] -> tip <= 4) {
+			if(!ide_implicitna_pretvorba(cv -> djeca[2] -> tip, cv -> djeca[0] -> tip)) kraj(cv); // u uputama forsiraju provjeru u T, ali je to identicno ko i u const(T)
+		}
+		else if(cv -> djeca[0] -> tip >= 5 && cv -> djeca[0] -> tip <= 8) {
+			if(cv -> djeca[2] -> br_elem > cv -> djeca[0] -> br_elem) kraj(cv);
+			int T = cv -> djeca[0] -> tip - 4;
+			REP(i, (int)(cv -> djeca[2] -> tipovi).size()) {
+				if(!ide_implicitna_pretvorba((cv -> djeca[2] -> tipovi)[i], T)) kraj(cv);
+			}
+		}
+		else kraj(cv);
 	}
 	else greska(cv);
 }
