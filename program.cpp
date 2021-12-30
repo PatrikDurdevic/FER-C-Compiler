@@ -210,14 +210,17 @@ void postfiks_izraz(cvor *cv) {
 		// TODO
 		//
 		postfiks_izraz(cv->djeca[0]);
-		if (!(cv->djeca[0]->tip == toConst(cv->tip))) {
+		if (!(cv->djeca[0]->tip >= 5 && cv->djeca[0]->tip <= 8)) {
 			kraj(cv);
 		}
 		izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
-		cv->djeca[2]->tip = 1;
+		
+		cv->tip = cv->djeca[0]->tip - 4;
+		cv->l_izraz = cv->djeca[0]->tip - 4;
+		if (cv->l_izraz >= 3) cv->l_izraz -= 2;
 	}
 	if (cv->djeca.size() == 3 &&
 		cv->djeca[0]->uniformni_znak == "POSTFIKS_IZRAZ" &&
