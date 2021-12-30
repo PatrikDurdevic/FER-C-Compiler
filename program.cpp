@@ -914,6 +914,22 @@ void lista_init_deklaratora(cvor *cv) {
 	}
 	else greska(cv);
 }
+
+void init_deklarator(cvor *cv) {
+	vector <string> dj = daj_uniformne_znakove_djece(cv);
+	if((int)dj.size() == 1) {
+		cv -> djeca[0] -> ntip = cv -> ntip;
+		izravni_deklarator(cv -> djeca[0]);
+		if()
+	}
+	else if((int)dj.size() == 3) {
+		cv -> djeca[0] -> ntip = cv -> ntip;
+		lista_init_deklaratora(cv -> djeca[0]);
+		cv -> djeca[2] -> ntip = cv -> ntip;
+		init_deklarator(cv -> djeca[2]);
+	}
+	else greska(cv);
+}
 //
 // DEKLARACIJE I DEFINICIJE
 //
