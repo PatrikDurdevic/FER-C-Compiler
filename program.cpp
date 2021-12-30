@@ -529,7 +529,7 @@ void bin_xili_izraz(cvor *cv) {
 		cv->djeca[0]->uniformni_znak == "BIN_XILI_IZRAZ" &&
 		(cv->djeca[1]->uniformni_znak == "OP_BIN_XILI") &&
 		cv->djeca[2]->uniformni_znak == "BIN_I_IZRAZ") {
-		rek(cv->djeca[0]);
+		bin_xili_izraz(cv->djeca[0]);
 		if (!canCastToInt(cv->djeca[0]->tip)) {
 			bin_xili_izraz(cv);
 		}
