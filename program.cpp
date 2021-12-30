@@ -148,7 +148,7 @@ bool canCastToInt(int type) {
 void primarni_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "IDN") {
-		if (cv->djeca[0]->ime == "") {
+		if (varijable[cv->djeca[0]->ime].size() == 0) {
 			kraj(cv);
 		}
 
@@ -186,7 +186,7 @@ void primarni_izraz(cvor *cv) {
 		cv->djeca[0]->uniformni_znak == "L_ZAGRADA" &&
 		cv->djeca[1]->uniformni_znak == "NIZ_ZNAKOVA" &&
 		cv->djeca[2]->uniformni_znak == "D_ZAGRADA") {
-		rek(cv->djeca[1]);
+		niz_znakova(cv->djeca[1]);
 
 		cv->tip = cv->djeca[1]->tip;
 		cv->l_izraz = cv->djeca[1]->l_izraz;
@@ -196,7 +196,7 @@ void primarni_izraz(cvor *cv) {
 void postfiks_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "PRIMARNI_IZRAZ") {
-		rek(cv->djeca[0]);
+		primarni_izraz(cv->djeca[0]);
 
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -209,11 +209,11 @@ void postfiks_izraz(cvor *cv) {
 		//
 		// TODO
 		//
-		rek(cv->djeca[0]);
+		postfiks_izraz(cv->djeca[0]);
 		if (!(cv->djeca[0]->tip == toConst(cv->tip))) {
 			kraj(cv);
 		}
-		rek(cv->djeca[2]);
+		izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
@@ -223,7 +223,7 @@ void postfiks_izraz(cvor *cv) {
 		cv->djeca[0]->uniformni_znak == "POSTFIKS_IZRAZ" &&
 		cv->djeca[1]->uniformni_znak == "L_ZAGRADA" &&
 		cv->djeca[2]->uniformni_znak == "D_ZAGRADA") {
-		rek(cv->djeca[0]);
+		postfiks_izraz(cv->djeca[0]);
 		if (cv->djeca[0]->tip != 10) {
 			kraj(cv);
 		}
@@ -236,8 +236,8 @@ void postfiks_izraz(cvor *cv) {
 		cv->djeca[1]->uniformni_znak == "L_ZAGRADA" &&
 		cv->djeca[2]->uniformni_znak == "LISTA_ARGUMENATA" &&
 		cv->djeca[3]->uniformni_znak == "D_ZAGRADA") {
-		rek(cv->djeca[0]);
-		rek(cv->djeca[2]);
+		postfiks_izraz(cv->djeca[0]);
+		lista_argumenata(cv->djeca[2]);
 		if (cv->djeca[0]->tip != 11) {
 			kraj(cv);
 		}
@@ -257,7 +257,7 @@ void postfiks_izraz(cvor *cv) {
 		cv->djeca[0]->uniformni_znak == "POSTFIKS_IZRAZ" &&
 		(cv->djeca[1]->uniformni_znak == "OP_INC" ||
 		cv->djeca[1]->uniformni_znak == "OP_DEC")) {
-		rek(cv->djeca[0]);
+		postfiks_izraz(cv->djeca[0]);
 		if (!(cv->djeca[0]->l_izraz == 1 && canCastToInt(cv->djeca[0]->tip))) {
 			kraj(cv);
 		}
@@ -270,7 +270,7 @@ void postfiks_izraz(cvor *cv) {
 void lista_argumenata(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "IZRAZ_PRIDRUZIVANJA") {
-		rek(cv->djeca[0]);
+		izraz_pridruzivanja(cv->djeca[0]);
 		
 		cv->tipovi = {cv->djeca[0]->tip};
 	}
@@ -281,15 +281,15 @@ void lista_argumenata(cvor *cv) {
 		cv->tipovi = cv->djeca[0]->tipovi;
 		cv->tipovi.push_back(cv->djeca[2]->tip);
 
-		rek(cv->djeca[0]);
-		rek(cv->djeca[2]);
+		lista_argumenata(cv->djeca[0]);
+		izraz_pridruzivanja(cv->djeca[2]);
 	}
 }
 
 void unarni_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "POSTFIKS_IZRAZ") {
-		rek(cv->djeca[0]);
+		postfiks_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -298,7 +298,7 @@ void unarni_izraz(cvor *cv) {
 		(cv->djeca[0]->uniformni_znak == "OP_INC" ||
 		cv->djeca[0]->uniformni_znak == "OP_DEC") &&
 		cv->djeca[1]->uniformni_znak == "UNARNI_IZRAZ") {
-		rek(cv->djeca[1]);
+		unarni_izraz(cv->djeca[1]);
 		if (!(cv->djeca[1]->l_izraz == 1 && canCastToInt(cv->djeca[1]->tip))) {
 			kraj(cv);
 		}
@@ -309,7 +309,7 @@ void unarni_izraz(cvor *cv) {
 	if (cv->djeca.size() == 2 &&
 		cv->djeca[0]->uniformni_znak == "UNARNI_OPERATOR" &&
 		cv->djeca[1]->uniformni_znak == "CAST_IZRAZ") {
-		rek(cv->djeca[1]);
+		cast_izraz(cv->djeca[1]);
 		if (!canCastToInt(cv->djeca[1]->tip >= 1)) {
 			kraj(cv);
 		}
@@ -322,7 +322,7 @@ void unarni_izraz(cvor *cv) {
 void cast_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "UNARNI_IZRAZ") {
-		rek(cv->djeca[0]);
+		unarni_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -332,8 +332,8 @@ void cast_izraz(cvor *cv) {
 		cv->djeca[1]->uniformni_znak == "IME_TIPA" &&
 		cv->djeca[2]->uniformni_znak == "D_ZAGRADA" &&
 		cv->djeca[3]->uniformni_znak == "CAST_IZRAZ") {
-		rek(cv->djeca[1]);
-		rek(cv->djeca[3]);
+		ime_tipa(cv->djeca[1]);
+		cast_izraz(cv->djeca[3]);
 		if (!canCast(cv->djeca[3]->tip, cv->djeca[1]->tip)) {
 			kraj(cv);
 		}
@@ -346,14 +346,14 @@ void cast_izraz(cvor *cv) {
 void ime_tipa(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "SPECIFIKATOR_TIPA") {
-		rek(cv->djeca[0]);
+		specifikator_tipa(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 	}
 	if (cv->djeca.size() == 2 &&
 		cv->djeca[0]->uniformni_znak == "KR_CONST" &&
 		cv->djeca[1]->uniformni_znak == "SPECIFIKATOR_TIPA") {
-		rek(cv->djeca[1]);
+		specifikator_tipa(cv->djeca[1]);
 		if (cv->djeca[1]->tip == 12) {
 			kraj(cv);
 		}
@@ -380,7 +380,7 @@ void specifikator_tipa(cvor *cv) {
 void multiplikativni_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "CAST_IZRAZ") {
-		rek(cv->djeca[0]);
+		cast_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -391,11 +391,11 @@ void multiplikativni_izraz(cvor *cv) {
 		cv->djeca[1]->uniformni_znak == "OP_DIJELI" ||
 		cv->djeca[1]->uniformni_znak == "OP_MOD") &&
 		cv->djeca[2]->uniformni_znak == "CAST_IZRAZ") {
-		rek(cv->djeca[0]);
+		multiplikativni_izraz(cv->djeca[0]);
 		if (!canCastToInt(cv->djeca[0]->tip)) {
 			kraj(cv);
 		}
-		rek(cv->djeca[2]);
+		cast_izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
@@ -408,7 +408,7 @@ void multiplikativni_izraz(cvor *cv) {
 void aditivni_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "MULTIPLIKATIVNI_IZRAZ") {
-		rek(cv->djeca[0]);
+		multiplikativni_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -421,11 +421,11 @@ void aditivni_izraz(cvor *cv) {
 		//
 		// TODO: možda je ovo OP_PLUS i OP_MINUS a ne PLUS i MINUS
 		//
-		rek(cv->djeca[0]);
+		aditivni_izraz(cv->djeca[0]);
 		if (!canCastToInt(cv->djeca[0]->tip)) {
 			kraj(cv);
 		}
-		rek(cv->djeca[2]);
+		multiplikativni_izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
@@ -438,7 +438,7 @@ void aditivni_izraz(cvor *cv) {
 void odnosni_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "ADITIVNI_IZRAZ") {
-		rek(cv->djeca[0]);
+		aditivni_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -450,11 +450,11 @@ void odnosni_izraz(cvor *cv) {
 		cv->djeca[1]->uniformni_znak == "OP_LTE" ||
 		cv->djeca[1]->uniformni_znak == "OP_GTE") &&
 		cv->djeca[2]->uniformni_znak == "ADITIVNI_IZRAZ") {
-		rek(cv->djeca[0]);
+		odnosni_izraz(cv->djeca[0]);
 		if (!canCastToInt(cv->djeca[0]->tip)) {
 			kraj(cv);
 		}
-		rek(cv->djeca[2]);
+		aditivni_izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
@@ -467,7 +467,7 @@ void odnosni_izraz(cvor *cv) {
 void jednakosni_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "ODNOSNI_IZRAZ") {
-		rek(cv->djeca[0]);
+		odnosni_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -477,11 +477,11 @@ void jednakosni_izraz(cvor *cv) {
 		(cv->djeca[1]->uniformni_znak == "OP_EQ" ||
 		cv->djeca[1]->uniformni_znak == "OP_NEQ") &&
 		cv->djeca[2]->uniformni_znak == "ODNOSNI_IZRAZ") {
-		rek(cv->djeca[0]);
+		jednakosni_izraz(cv->djeca[0]);
 		if (!canCastToInt(cv->djeca[0]->tip)) {
 			kraj(cv);
 		}
-		rek(cv->djeca[2]);
+		odnosni_izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
@@ -494,7 +494,7 @@ void jednakosni_izraz(cvor *cv) {
 void bin_i_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "JEDNAKOSNI_IZRAZ") {
-		rek(cv->djeca[0]);
+		jednakosni_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -503,11 +503,11 @@ void bin_i_izraz(cvor *cv) {
 		cv->djeca[0]->uniformni_znak == "BIN_I_IZRAZ" &&
 		(cv->djeca[1]->uniformni_znak == "OP_BIN_I") &&
 		cv->djeca[2]->uniformni_znak == "JEDNAKOSNI_IZRAZ") {
-		rek(cv->djeca[0]);
+		bin_i_izraz(cv->djeca[0]);
 		if (!canCastToInt(cv->djeca[0]->tip)) {
 			kraj(cv);
 		}
-		rek(cv->djeca[2]);
+		jednakosni_izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
@@ -520,7 +520,7 @@ void bin_i_izraz(cvor *cv) {
 void bin_xili_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "BIN_I_IZRAZ") {
-		rek(cv->djeca[0]);
+		bin_i_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -531,9 +531,9 @@ void bin_xili_izraz(cvor *cv) {
 		cv->djeca[2]->uniformni_znak == "BIN_I_IZRAZ") {
 		rek(cv->djeca[0]);
 		if (!canCastToInt(cv->djeca[0]->tip)) {
-			kraj(cv);
+			bin_xili_izraz(cv);
 		}
-		rek(cv->djeca[2]);
+		bin_i_izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
@@ -546,7 +546,7 @@ void bin_xili_izraz(cvor *cv) {
 void bin_ili_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "BIN_XILI_IZRAZ") {
-		rek(cv->djeca[0]);
+		bin_xili_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -555,11 +555,11 @@ void bin_ili_izraz(cvor *cv) {
 		cv->djeca[0]->uniformni_znak == "BIN_ILI_IZRAZ" &&
 		(cv->djeca[1]->uniformni_znak == "OP_BIN_ILI") &&
 		cv->djeca[2]->uniformni_znak == "BIN_XILI_IZRAZ") {
-		rek(cv->djeca[0]);
+		bin_ili_izraz(cv->djeca[0]);
 		if (!canCastToInt(cv->djeca[0]->tip)) {
 			kraj(cv);
 		}
-		rek(cv->djeca[2]);
+		bin_xili_izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
@@ -572,7 +572,7 @@ void bin_ili_izraz(cvor *cv) {
 void log_i_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "BIN_ILI_IZRAZ") {
-		rek(cv->djeca[0]);
+		bin_ili_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -581,11 +581,11 @@ void log_i_izraz(cvor *cv) {
 		cv->djeca[0]->uniformni_znak == "LOG_I_IZRAZ" &&
 		(cv->djeca[1]->uniformni_znak == "OP_I") &&
 		cv->djeca[2]->uniformni_znak == "BIN_ILI_IZRAZ") {
-		rek(cv->djeca[0]);
+		log_i_izraz(cv->djeca[0]);
 		if (!canCastToInt(cv->djeca[0]->tip)) {
 			kraj(cv);
 		}
-		rek(cv->djeca[2]);
+		bin_ili_izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
@@ -598,7 +598,7 @@ void log_i_izraz(cvor *cv) {
 void log_ili_izraz(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "LOG_I_IZRAZ") {
-		rek(cv->djeca[0]);
+		log_i_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -607,11 +607,11 @@ void log_ili_izraz(cvor *cv) {
 		cv->djeca[0]->uniformni_znak == "LOG_ILI_IZRAZ" &&
 		(cv->djeca[1]->uniformni_znak == "OP_ILI") &&
 		cv->djeca[2]->uniformni_znak == "LOG_I_IZRAZ") {
-		rek(cv->djeca[0]);
+		log_ili_izraz(cv->djeca[0]);
 		if (!canCastToInt(cv->djeca[0]->tip)) {
 			kraj(cv);
 		}
-		rek(cv->djeca[2]);
+		log_i_izraz(cv->djeca[2]);
 		if (!canCastToInt(cv->djeca[2]->tip)) {
 			kraj(cv);
 		}
@@ -624,7 +624,7 @@ void log_ili_izraz(cvor *cv) {
 void izraz_pridruzivanja(cvor *cv) {
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "LOG_ILI_IZRAZ") {
-		rek(cv->djeca[0]);
+		log_ili_izraz(cv->djeca[0]);
 		
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = cv->djeca[0]->l_izraz;
@@ -633,11 +633,11 @@ void izraz_pridruzivanja(cvor *cv) {
 		cv->djeca[0]->uniformni_znak == "POSTFIKS_IZRAZ" &&
 		(cv->djeca[1]->uniformni_znak == "OP_PRIDRUZI") &&
 		cv->djeca[2]->uniformni_znak == "LOG_ILI_IZRAZ") {
-		rek(cv->djeca[0]);
+		postfiks_izraz(cv->djeca[0]);
 		if (cv->djeca[0]->l_izraz != 1) {
 			kraj(cv);
 		}
-		rek(cv->djeca[2]);
+		log_ili_izraz(cv->djeca[2]);
 		if (cv->djeca[2]->tip != cv->djeca[0]->tip) {
 			kraj(cv);
 		}
