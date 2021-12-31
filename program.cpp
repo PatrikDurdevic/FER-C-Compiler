@@ -66,6 +66,14 @@ vector <string> deklarirane_funkcije;
 int br_petlji = 0;
 vector <int> tipovi_povratnih_vrijednosti;
 
+void debug_vector(vector<int> v) {
+	cout << "Debug vector: ";
+	for (int i = 0; i < v.size(); i++) {
+		cout << v[i] << " ";
+	}
+	cout << endl;
+}
+
 vector <string> daj_uniformne_znakove_djece(cvor *neki) {
 	vector <string> ret;
 	for(cvor *dijete : neki -> djeca) ret.push_back(dijete -> uniformni_znak);
@@ -146,7 +154,16 @@ void primarni_izraz(cvor *cv) {
 	vector <string> dj = daj_uniformne_znakove_djece(cv);
 	if(dj[0] == "IDN") {
 		string ime = cv -> djeca[0] -> jedinka;
-		if(varijable[ime].size()) {
+		if (varijable[ime].size() && (deklarirana_funkcija[ime] || deklaracije[ime].size())) {
+			if (varijable[ime].back().first > deklaracije[ime].back().first) { // TODO što ako imaju isti broj bloka, jel se to može uopće dogoditi
+				cv -> tip = varijable[ime].back().second;
+				if(cv -> tip == 1 || cv -> tip == 2) cv -> l_izraz = 1;
+			} else {
+				cv -> tip = 11; // ne sluzi nicemu, stovise, ovaj dio koda se ne bi trebao nikad izvest
+				cv -> l_izraz = 0;
+			}
+		}
+		else if(varijable[ime].size()) {
 			cv -> tip = varijable[ime].back().second;
 			if(cv -> tip == 1 || cv -> tip == 2) cv -> l_izraz = 1;
 		}
@@ -273,11 +290,13 @@ void postfiks_izraz(cvor *cv) {
 		if(tr -> djeca[0] -> uniformni_znak == "IDN") { // trebalo bi uvijek vrijedit
 			string ime = tr -> djeca[0] -> jedinka;
 			if(deklarirana_funkcija[ime]) { // dodano
-				if(!vektori_jednaki(deklaracija_funkcije[ime].first, tr -> djeca[2] -> tipovi)) kraj(cv);
+				if(!vektori_jednaki(deklaracija_funkcije[ime].first, cv -> djeca[2] -> tipovi)) kraj(cv);
 				cv -> tip = deklaracija_funkcije[ime].second;
 			}
 			else if(deklaracije[ime].size()) {
-				if(!vektori_jednaki(deklaracije[ime].back().second.first, tr -> djeca[2] -> tipovi)) kraj(cv);
+				if(!vektori_jednaki(deklaracije[ime].back().second.first, cv -> djeca[2] -> tipovi)) {
+					kraj(cv);
+				}
 				cv -> tip = deklaracije[ime].back().second.second;
 			}
 			else kraj(cv);
@@ -1173,6 +1192,7 @@ int main() { //TODO povecaj brojac petlji na pravom mjestu za break i continue
 		zavrsi(root);
 	}
 	REP(i, (int)deklarirane_funkcije.size()) {
+		//cout << deklarirane_funkcije[i] << endl;
 		if(!definirana_funkcija[deklarirane_funkcije[i]]) {
 			cout << "funkcija\n";
 			zavrsi(root);
