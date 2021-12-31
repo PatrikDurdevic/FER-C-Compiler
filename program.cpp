@@ -61,7 +61,7 @@ map <string, vector <pair <int, pair <vector <int>, int> > > > deklaracije;
 map <string, bool> definirana_funkcija;
 map <string, bool> deklarirana_funkcija;
 map <string, pair <vector <int>, int> > deklaracija_funkcije;
-vector <string> deklarirane_funkcije;
+vector <pair <string, pair <vector <int>, int> > > deklarirane_funkcije;
 
 int br_petlji = 0;
 vector <int> tipovi_povratnih_vrijednosti;
@@ -146,12 +146,22 @@ void primarni_izraz(cvor *cv) {
 	vector <string> dj = daj_uniformne_znakove_djece(cv);
 	if(dj[0] == "IDN") {
 		string ime = cv -> djeca[0] -> jedinka;
-		if(varijable[ime].size()) {
+		if(varijable[ime].size() && (deklarirana_funkcija[ime] || deklaracije[ime].size())) {
+			if(deklaracije[ime].size() && deklaracije[ime].back().first > varijable[ime].back().first) {
+				cv -> tip = 11; // ne sluzi nicemu, stovise, ovaj dio koda se ne bi trebao nikad izvest
+				cv -> l_izraz = 0;
+			}
+			else {
+				cv -> tip = varijable[ime].back().second;
+				if(cv -> tip == 1 || cv -> tip == 2) cv -> l_izraz = 1;
+			}
+		}
+		else if(varijable[ime].size()) {
 			cv -> tip = varijable[ime].back().second;
 			if(cv -> tip == 1 || cv -> tip == 2) cv -> l_izraz = 1;
 		}
 		else if(deklarirana_funkcija[ime] || deklaracije[ime].size()) {
-			cv -> tip = 11; // ne sluzi nicemu, stovise, ovaj dio koda se ne bi trebao nikad izvest
+			cv -> tip = 11;
 			cv -> l_izraz = 0;
 		}
 		else kraj(cv);
@@ -244,13 +254,13 @@ void postfiks_izraz(cvor *cv) {
 		while(tr -> uniformni_znak == "<postfiks_izraz>") tr = tr -> djeca[0];
 		if(tr -> djeca[0] -> uniformni_znak == "IDN") { // trebalo bi uvijek vrijedit
 			string ime = tr -> djeca[0] -> jedinka;
-			if(deklarirana_funkcija[ime]) { // dodano
-				if(deklaracija_funkcije[ime].first.size()) kraj(cv);
-				cv -> tip = deklaracija_funkcije[ime].second;
-			}
-			else if(deklaracije[ime].size()) {
+			if(deklaracije[ime].size()) { // zamijenjen redoslijed tako da prvo provjerim lokalne delkaracije
 				if(deklaracije[ime].back().second.first.size()) kraj(cv);
 				cv -> tip = deklaracije[ime].back().second.second;
+			}
+			else if(deklarirana_funkcija[ime]) { // dodano
+				if(deklaracija_funkcije[ime].first.size()) kraj(cv);
+				cv -> tip = deklaracija_funkcije[ime].second;
 			}
 			else kraj(cv);
 		}
@@ -267,18 +277,23 @@ void postfiks_izraz(cvor *cv) {
 		/*if (cv->djeca[0]->tip != 11) { // trebalo bi maknut
 			kraj(cv);
 		}*/
-		
 		cvor *tr = cv;
 		while(tr -> uniformni_znak == "<postfiks_izraz>") tr = tr -> djeca[0];
 		if(tr -> djeca[0] -> uniformni_znak == "IDN") { // trebalo bi uvijek vrijedit
 			string ime = tr -> djeca[0] -> jedinka;
-			if(deklarirana_funkcija[ime]) { // dodano
-				if(!vektori_jednaki(deklaracija_funkcije[ime].first, tr -> djeca[2] -> tipovi)) kraj(cv);
-				cv -> tip = deklaracija_funkcije[ime].second;
-			}
-			else if(deklaracije[ime].size()) {
-				if(!vektori_jednaki(deklaracije[ime].back().second.first, tr -> djeca[2] -> tipovi)) kraj(cv);
+			if(deklaracije[ime].size()) { // zamijenjen redoslijed tako da prvo provjerim lokalne deklaracije
+				if(!(deklaracije[ime].back().second.first.size() == (cv -> djeca[2] -> tipovi).size())) kraj(cv);
+				REP(i, (int)(cv -> djeca[2] -> tipovi).size()) {
+					if(!ide_implicitna_pretvorba((cv -> djeca[2] -> tipovi)[i], deklaracije[ime].back().second.first[i])) kraj(cv);
+				}
 				cv -> tip = deklaracije[ime].back().second.second;
+			}
+			else if(deklarirana_funkcija[ime]) { // dodano
+				if(!(deklaracija_funkcije[ime].first.size() == (cv -> djeca[2] -> tipovi).size())) kraj(cv);
+				REP(i, (int)(cv -> djeca[2] -> tipovi).size()) {
+					if(!ide_implicitna_pretvorba((cv -> djeca[2] -> tipovi)[i], deklaracija_funkcije[ime].first[i])) kraj(cv);
+				}
+				cv -> tip = deklaracija_funkcije[ime].second;
 			}
 			else kraj(cv);
 		}
@@ -886,6 +901,7 @@ void definicija_funkcije(cvor *cv) {
 		if(deklarirana_funkcija[ime]) {
 			if(deklaracija_funkcije[ime].first.size() || deklaracija_funkcije[ime].second != cv -> djeca[0] -> tip) kraj(cv);
 		}
+		if(varijable[ime].size()) kraj(cv); // TODO dodano, provjeriti, valjda sprjecava vanjsku deklaraciju varijable i funkcije istog imena
 		definirana_funkcija[ime] = 1;
 		deklarirana_funkcija[ime] = 1;
 		deklaracija_funkcije[ime] = make_pair(vector <int>(), cv -> djeca[0] -> tip);
@@ -901,6 +917,7 @@ void definicija_funkcije(cvor *cv) {
 		if(deklarirana_funkcija[ime]) {
 			if(!vektori_jednaki(cv -> djeca[3] -> tipovi, deklaracija_funkcije[ime].first) || cv -> djeca[0] -> tip != deklaracija_funkcije[ime].second) kraj(cv);
 		}
+		if(varijable[ime].size()) kraj(cv); // TODO dodano, provjeriti, valjda sprjecava vanjsku deklaraciju varijable i funkcije istog imena
 		definirana_funkcija[ime] = 1;
 		deklarirana_funkcija[ime] = 1;
 		deklaracija_funkcije[ime] = make_pair(cv -> djeca[3] -> tipovi, cv -> djeca[0] -> tip);
@@ -1021,6 +1038,7 @@ void izravni_deklarator(cvor *cv) {
 		if(cv -> ntip == 12) kraj(cv);
 		string ime = cv -> djeca[0] -> jedinka;
 		if(varijable[ime].size() && varijable[ime].back().first == br_bloka) kraj(cv);
+		if(deklaracije[ime].size() && deklaracije[ime].back().first == br_bloka) kraj(cv); // dodano
 		varijable[ime].push_back(make_pair(br_bloka, cv -> tip));
 	}
 	else if(dj[2] == "BROJ") {
@@ -1045,9 +1063,10 @@ void izravni_deklarator(cvor *cv) {
 		if(deklaracije[ime].size() && deklaracije[ime].back().first == br_bloka) {
 			if(deklaracije[ime].back().second.first.size() || deklaracije[ime].back().second.second != cv -> ntip) kraj(cv);
 		}
+		else if(varijable[ime].size() && varijable[ime].back().first == br_bloka) kraj(cv); //dodano
 		else {
 			deklaracije[ime].push_back(make_pair(br_bloka, make_pair(vector <int>(), cv -> ntip)));
-			deklarirane_funkcije.push_back(ime);
+			deklarirane_funkcije.push_back(make_pair(ime, make_pair(vector <int>(), cv -> ntip)));
 		}
 	}
 	else if(dj[2] == "<lista_parametara>") {
@@ -1058,9 +1077,10 @@ void izravni_deklarator(cvor *cv) {
 		if(deklaracije[ime].size() && deklaracije[ime].back().first == br_bloka) {
 			if(!vektori_jednaki(tipovi, deklaracije[ime].back().second.first) || deklaracije[ime].back().second.second != cv -> ntip) kraj(cv);
 		}
+		else if(varijable[ime].size() && varijable[ime].back().first == br_bloka) kraj(cv); //dodano
 		else {
 			deklaracije[ime].push_back(make_pair(br_bloka, make_pair(tipovi, cv -> ntip)));
-			deklarirane_funkcije.push_back(ime);
+			deklarirane_funkcije.push_back(make_pair(ime, make_pair(tipovi, cv -> ntip)));
 		}
 	}
 	else greska(cv);
@@ -1173,7 +1193,9 @@ int main() { //TODO povecaj brojac petlji na pravom mjestu za break i continue
 		zavrsi(root);
 	}
 	REP(i, (int)deklarirane_funkcije.size()) {
-		if(!definirana_funkcija[deklarirane_funkcije[i]]) {
+		if(!definirana_funkcija[deklarirane_funkcije[i].first] ||
+			!vektori_jednaki(deklaracija_funkcije[deklarirane_funkcije[i].first].first, deklarirane_funkcije[i].second.first) ||
+			deklaracija_funkcije[deklarirane_funkcije[i].first].second != deklarirane_funkcije[i].second.second) {
 			cout << "funkcija\n";
 			zavrsi(root);
 		}
