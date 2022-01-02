@@ -5,14 +5,13 @@ using namespace std;
 typedef long long int ll;
 
 // TODO ako je petlja jednoretcana bez {}, trenutni analizator ne dopusta deklaraciju u novom lokalnom djelokrugu
-// TODO sprijeci deklaraciju varijabli i funkcija s istim imenom
 
 struct cvor {
 	int tip = 0;
 	// 0 - undefined, 1 - int, 2 - char, 3 - const(int), 4 - const(char)
 	// 5 - niz(int), 6 - niz(char), 7 - niz(const(int)), 8 - niz(const(char))
 	// 9 - pov, 10 - funkcija(void -> pov), 11 - funkcija(params -> pov), 12 - void
-	bool l_izraz = 0; // TODO postavi l_izraz za identifikatore koji ga trebaju imat
+	bool l_izraz = 0;
 	vector <cvor*> djeca;
 	cvor *rod = NULL;
 	string ime = "";
@@ -148,7 +147,7 @@ void primarni_izraz(cvor *cv) {
 		string ime = cv -> djeca[0] -> jedinka;
 		if(varijable[ime].size() && (deklarirana_funkcija[ime] || deklaracije[ime].size())) {
 			if(deklaracije[ime].size() && deklaracije[ime].back().first > varijable[ime].back().first) {
-				cv -> tip = 11; // ne sluzi nicemu, stovise, ovaj dio koda se ne bi trebao nikad izvest
+				cv -> tip = 11;
 				cv -> l_izraz = 0;
 			}
 			else {
@@ -170,15 +169,12 @@ void primarni_izraz(cvor *cv) {
 		string sbroj = cv -> djeca[0] -> jedinka;
 		cv -> tip = 1;
 		cv -> l_izraz = 0;
-		ll broj = 0;
-		if((int)sbroj.size() > 12) kraj(cv);
-		int ptr = sbroj[0] == '-';
-		for(int i = ptr; i < (int)sbroj.size(); i++) { // TODO popravi ovo
-			broj *= 10;
-			broj += sbroj[i] - '0';
+		try {
+			stoi(sbroj, nullptr, (sbroj.size() >= 2 && (sbroj[1] == 'x' || sbroj[1] == 'X')) ? 0 : 10);
 		}
-		if(ptr) broj *= -1;
-		if(broj < -2147483648 || broj > 2147483647) kraj(cv);
+		catch(...) {
+			kraj(cv);
+		}
 		
 	}
 	else if(dj[0] == "ZNAK") {
@@ -246,9 +242,6 @@ void postfiks_izraz(cvor *cv) {
 		cv->djeca[1]->uniformni_znak == "L_ZAGRADA" &&
 		cv->djeca[2]->uniformni_znak == "D_ZAGRADA") {
 		postfiks_izraz(cv->djeca[0]);
-		/*if (cv->djeca[0]->tip != 10) { // trebalo bi maknut
-			kraj(cv);
-		}*/
 		
 		cvor *tr = cv;
 		while(tr -> uniformni_znak == "<postfiks_izraz>") tr = tr -> djeca[0];
@@ -274,9 +267,6 @@ void postfiks_izraz(cvor *cv) {
 		cv->djeca[3]->uniformni_znak == "D_ZAGRADA") {
 		postfiks_izraz(cv->djeca[0]);
 		lista_argumenata(cv->djeca[2]);
-		/*if (cv->djeca[0]->tip != 11) { // trebalo bi maknut
-			kraj(cv);
-		}*/
 		cvor *tr = cv;
 		while(tr -> uniformni_znak == "<postfiks_izraz>") tr = tr -> djeca[0];
 		if(tr -> djeca[0] -> uniformni_znak == "IDN") { // trebalo bi uvijek vrijedit
@@ -1047,13 +1037,14 @@ void izravni_deklarator(cvor *cv) {
 		string ime = cv -> djeca[0] -> jedinka;
 		if(varijable[ime].size() && varijable[ime].back().first == br_bloka) kraj(cv);
 		string sbroj = cv -> djeca[2] -> jedinka;
-		int broj = 0;
-		if((int)sbroj.size() > 4 || sbroj[0] == '-') kraj(cv); // TODO popravi ovo
-		REP(i, (int)sbroj.size()) {
-			broj *= 10;
-			broj += sbroj[i] - '0';
+		int broj;
+		try {
+			broj = stoi(sbroj, nullptr, (sbroj.size() >= 2 && (sbroj[1] == 'x' || sbroj[1] == 'X')) ? 0 : 10);
+			if(broj <= 0 || broj > 1024) kraj(cv);
 		}
-		if(broj <= 0 || broj > 1024) kraj(cv);
+		catch(...) {
+			kraj(cv);
+		}
 		cv -> br_elem = broj;
 		varijable[ime].push_back(make_pair(br_bloka, cv -> tip));
 	}
