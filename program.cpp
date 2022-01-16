@@ -192,6 +192,7 @@ void primarni_izraz(cvor *cv) {
 			cv -> l_izraz = 0;
 		}
 		else kraj(cv);
+		// TODO znas vec kaj
 	}
 	else if(dj[0] == "BROJ") {
 		string sbroj = cv -> djeca[0] -> jedinka;
@@ -415,27 +416,27 @@ void unarni_izraz(cvor *cv) {
 
 		cv->tip = 1;
 		cv->l_izraz = 0;
-		if(cv -> djeca[0] -> jedinka == "MINUS") {
+		if(cv -> djeca[0] -> djeca[0] -> uniformni_znak == "MINUS") {
 			cout << " POP R0\n";
 			cout << " MOVE 0, R1\n";
 			cout << " SUB R1, R0, R0\n";
 			cout << " PUSH R0\n";
 		}
-		else if(cv -> djeca[0] -> jedinka == "OP_TILDA") {
+		else if(cv -> djeca[0] -> djeca[0] -> uniformni_znak == "OP_TILDA") {
 			cout << " POP R0\n";
 			cout << " MOVE 0, R1\n";
 			cout << " SUB R1, 1, R1\n";
 			cout << " XOR R0, R1, R0\n";
 			cout << " PUSH R0\n";
 		}
-		else if(cv -> djeca[0] -> jedinka == "OP_NEG") {
+		else if(cv -> djeca[0] -> djeca[0] -> uniformni_znak == "OP_NEG") {
 			cout << " POP R0\n";
 			cout << " CMP R0, 0\n";
 			cout << " MOVE 0, R0\n";
 			cout << " CALL_EQ PUNI_R0\n";
 			cout << " PUSH R0\n";
 		}
-		else if(cv -> djeca[0] -> jedinka != "PLUS") cout << "YOOOOOO, ne valja tu nes\n";
+		else if(cv -> djeca[0] -> djeca[0] -> uniformni_znak != "PLUS") cout << "YOOOOOO, ne valja tu nes\n";
 		// TODO ostalo
 	}
 }
@@ -980,6 +981,7 @@ void naredba_skoka(cvor *cv) {
 		if(!tipovi_povratnih_vrijednosti.size() || !ide_implicitna_pretvorba(cv -> djeca[1] -> tip, tipovi_povratnih_vrijednosti.back())) kraj(cv);
 		//
 		cout << " MOVE R0, R6\n";
+		cout << " POP R0\n";
 		cout << " RET\n";
 	}
 	else greska(cv);
