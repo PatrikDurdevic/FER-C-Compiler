@@ -54,7 +54,11 @@ void kraj(cvor *zadnji) {
 
 int br_bloka = 0;
 map <string, vector <pair <int, int> > > varijable; // za svako ime varijable pamtim brojeve blokova deklaracija i tip
-map <string, vector <int> > mjesto_na_stogu;
+map <string, vector <int> > odmak_na_stogu_lok;
+map <string, vector <int> > odmak_na_stogu_glob;
+int tr_odmak = 1;
+
+string ime_fje;
 
 map <string, vector <pair <int, pair <vector <int>, int> > > > deklaracije;
 
@@ -192,7 +196,23 @@ void primarni_izraz(cvor *cv) {
 			cv -> l_izraz = 0;
 		}
 		else kraj(cv);
-		// TODO znas vec kaj
+		// TODO ak su polja ovdje ne bu dobro
+		if(odmak_na_stogu_lok[ime].size()) {
+			cout << " MOVE " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
+			cout << " ADD R0, R5, R0\n";
+			cout << " LOAD R0, (R0)\n";
+			cout << " PUSH R0\n";
+		}
+		else if(odmak_na_stogu_glob[ime].size()) {
+			cout << " MOVE " << 4 * odmak_na_stogu_glob[ime].back() << ", R0\n";
+			cout << " ADD R0, R5, R0\n";
+			cout << " LOAD R0, (R0)\n";
+			cout << " PUSH R0\n";
+		}
+		else {
+			//cout << "varijabla " << ime << " nije deklarirana ili je ime funkcije?\n";
+			ime_fje = ime;
+		}
 	}
 	else if(dj[0] == "BROJ") {
 		string sbroj = cv -> djeca[0] -> jedinka;
@@ -303,6 +323,7 @@ void postfiks_izraz(cvor *cv) {
 		cv->djeca[1]->uniformni_znak == "L_ZAGRADA" &&
 		cv->djeca[2]->uniformni_znak == "<lista_argumenata>" &&
 		cv->djeca[3]->uniformni_znak == "D_ZAGRADA") {
+		spremi_kontekst(); // da ne zezne parametre
 		postfiks_izraz(cv->djeca[0]);
 		lista_argumenata(cv->djeca[2]);
 		cvor *tr = cv;
@@ -310,10 +331,17 @@ void postfiks_izraz(cvor *cv) {
 		string ime;
 		if(tr -> djeca[0] -> uniformni_znak == "IDN") { // trebalo bi uvijek vrijedit
 			ime = tr -> djeca[0] -> jedinka;
+			//cout << " MOVE " << (int)(cv -> djeca[2] -> tipovi).size() << ", R0\n"; // broj parametara
+			//cout << " MOVE R0, R1\n";
 			if(deklaracije[ime].size()) { // zamijenjen redoslijed tako da prvo provjerim lokalne deklaracije
 				if(!(deklaracije[ime].back().second.first.size() == (cv -> djeca[2] -> tipovi).size())) kraj(cv);
 				REP(i, (int)(cv -> djeca[2] -> tipovi).size()) {
 					if(!ide_implicitna_pretvorba((cv -> djeca[2] -> tipovi)[i], deklaracije[ime].back().second.first[i])) kraj(cv);
+					// kopiranje argumenata nakon povratne vrijednosti
+					cout << " SUB R7, " << i * 4 << ", R0\n";
+					cout << " LOAD R1, (R0)\n";
+					cout << " ADD R7, " << ((int)(cv -> djeca[2] -> tipovi).size() - i + 1) * 4 << ", R0\n";
+					cout << " STORE R1, (R0)\n";
 				}
 				cv -> tip = deklaracije[ime].back().second.second;
 			}
@@ -321,6 +349,11 @@ void postfiks_izraz(cvor *cv) {
 				if(!(deklaracija_funkcije[ime].first.size() == (cv -> djeca[2] -> tipovi).size())) kraj(cv);
 				REP(i, (int)(cv -> djeca[2] -> tipovi).size()) {
 					if(!ide_implicitna_pretvorba((cv -> djeca[2] -> tipovi)[i], deklaracija_funkcije[ime].first[i])) kraj(cv);
+					// kopiranje argumenata nakon povratne vrijednosti
+					cout << " SUB R7, " << i * 4 << ", R0\n";
+					cout << " LOAD R1, (R0)\n";
+					cout << " ADD R7, " << ((int)(cv -> djeca[2] -> tipovi).size() - i + 1) * 4 << ", R0\n";
+					cout << " STORE R1, (R0)\n";
 				}
 				cv -> tip = deklaracija_funkcije[ime].second;
 			}
@@ -328,9 +361,10 @@ void postfiks_izraz(cvor *cv) {
 		}
 		else kraj(cv);
 		cv->l_izraz = 0;
-		spremi_kontekst();
-		//vector <string> argumenti = daj_argumentevector <cvor*> argumenti = cv -> djeca[2];
+		cout << " ADD R7, 4, R0\n";
+		cout << " MOVE R0, R5\n";
 		cout << " CALL F_" << veliko(ime) << "\n";
+		REP(i, (int)(cv -> djeca[2] -> tipovi).size()) cout << " POP R0\n";
 		obnovi_kontekst();
 	}
 	if (cv->djeca.size() == 2 &&
@@ -820,6 +854,7 @@ void izraz_pridruzivanja(cvor *cv) {
 
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = 0;
+		// TODO dodi do IDN ili vrijednosti na obje strane i pridruzi
 	}
 }
 
@@ -867,7 +902,15 @@ void slozena_naredba(cvor *cv) {
 	 //ovo se moze optimizirat tako da kad deklariramo novu varijablu stavimo to u globalni vektor i onda tu micemo
 	map <string, vector <pair <int, int> > >::iterator it = varijable.begin();
 	while(it != varijable.end()) {
-		while((it -> second).size() && (it -> second).back().first == br_bloka) (it -> second).pop_back();
+		while((it -> second).size() && (it -> second).back().first == br_bloka) {
+			string ime = it -> first;
+			if(odmak_na_stogu_lok[ime].size()) {
+				odmak_na_stogu_lok[ime].pop_back(); // trebalo bi vrijedit i za fje
+				tr_odmak--;
+			}
+			else cout << "ne postoji varijabla " << ime << " na odmak_na_stogu_lok\n";
+			(it -> second).pop_back();
+		}
 		it++;
 	}
 	map <string, vector <pair <int, pair <vector <int>, int> > > >::iterator itd = deklaracije.begin();
@@ -1027,6 +1070,7 @@ void definicija_funkcije(cvor *cv) {
 		ime_tipa(cv -> djeca[0]);
 		if(cv -> djeca[0] -> tip == 3 || cv -> djeca[0] -> tip == 4) kraj(cv);
 		string ime = cv -> djeca[1] -> jedinka; // ovo bi trebalo bit ime, ali svojstvo ime je zapravo jednika
+		cout << "F_" << veliko(ime) << "\n";
 		if(definirana_funkcija[ime]) kraj(cv);
 		if(deklarirana_funkcija[ime]) {
 			if(deklaracija_funkcije[ime].first.size() || deklaracija_funkcije[ime].second != cv -> djeca[0] -> tip) kraj(cv);
@@ -1036,15 +1080,13 @@ void definicija_funkcije(cvor *cv) {
 		deklarirana_funkcija[ime] = 1;
 		deklaracija_funkcije[ime] = make_pair(vector <int>(), cv -> djeca[0] -> tip);
 		tipovi_povratnih_vrijednosti.push_back(cv -> djeca[0] -> tip);
-		//
-		cout << "F_" << veliko(ime) << "\n";
-		//
 		slozena_naredba(cv -> djeca[5]);
 	}
 	else if(dj[3] == "<lista_parametara>") {
 		ime_tipa(cv -> djeca[0]);
 		if(cv -> djeca[0] -> tip == 3 || cv -> djeca[0] -> tip == 4) kraj(cv);
 		string ime = cv -> djeca[1] -> jedinka; // ovo bi trebalo bit ime, ali svojstvo ime je zapravo jednika
+		cout << "F_" << veliko(ime) << "\n";
 		if(definirana_funkcija[ime]) kraj(cv);
 		lista_parametara(cv -> djeca[3]);
 		if(deklarirana_funkcija[ime]) {
@@ -1057,6 +1099,8 @@ void definicija_funkcije(cvor *cv) {
 		tipovi_povratnih_vrijednosti.push_back(cv -> djeca[0] -> tip);
 		REP(i, (int)(cv -> djeca[3] -> tipovi).size()) { // dodavanje parametara u mapu varijabli za sljedeci blok
 			varijable[(cv -> djeca[3] -> imena)[i]].push_back(make_pair(br_bloka + 1, (cv -> djeca[3] -> tipovi)[i]));
+			odmak_na_stogu_lok[(cv -> djeca[3] -> imena)[i]].push_back(tr_odmak);
+			tr_odmak++;
 		}
 		slozena_naredba(cv -> djeca[5]);
 	}
@@ -1322,6 +1366,7 @@ int main() { //TODO povecaj brojac petlji na pravom mjestu za break i continue
 		//cout << tr -> rod -> uniformni_znak << " -> " << tr -> uniformni_znak << endl;
 	}
 	cout << " MOVE 40000, R7\n";
+	cout << " MOVE R7, R5\n";
 	cout << " CALL F_MAIN\n";
 	cout << " HALT\n";
 	prijevodna_jedinica(root);
