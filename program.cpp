@@ -198,14 +198,14 @@ void primarni_izraz(cvor *cv) {
 		else kraj(cv);
 		// TODO ak su polja ovdje ne bu dobro
 		if(odmak_na_stogu_lok[ime].size()) {
-			cout << " MOVE " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
-			cout << " ADD R0, R5, R0\n";
+			cout << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
+			cout << " SUB R5, R0, R0\n";
 			cout << " LOAD R0, (R0)\n";
 			cout << " PUSH R0\n";
 		}
 		else if(odmak_na_stogu_glob[ime].size()) {
-			cout << " MOVE " << 4 * odmak_na_stogu_glob[ime].back() << ", R0\n";
-			cout << " ADD R0, R5, R0\n";
+			cout << " MOVE %D " << 4 * odmak_na_stogu_glob[ime].back() << ", R0\n";
+			cout << " SUB R5, R0, R0\n";
 			cout << " LOAD R0, (R0)\n";
 			cout << " PUSH R0\n";
 		}
@@ -315,8 +315,11 @@ void postfiks_izraz(cvor *cv) {
 		cv->l_izraz = 0;
 		//
 		spremi_kontekst();
+		cout << " SUB R7, 4, R5\n";
 		cout << " CALL F_" << veliko(ime) << "\n";
 		obnovi_kontekst();
+		//cout << (cv -> tip) << endl;
+		if(cv -> tip != 12) cout << " PUSH R6\n";
 	}
 	if (cv->djeca.size() == 4 &&
 		cv->djeca[0]->uniformni_znak == "<postfiks_izraz>" &&
@@ -338,9 +341,9 @@ void postfiks_izraz(cvor *cv) {
 				REP(i, (int)(cv -> djeca[2] -> tipovi).size()) {
 					if(!ide_implicitna_pretvorba((cv -> djeca[2] -> tipovi)[i], deklaracije[ime].back().second.first[i])) kraj(cv);
 					// kopiranje argumenata nakon povratne vrijednosti
-					cout << " SUB R7, " << i * 4 << ", R0\n";
+					cout << " ADD R7, %D " << i * 4 << ", R0\n";
 					cout << " LOAD R1, (R0)\n";
-					cout << " ADD R7, " << ((int)(cv -> djeca[2] -> tipovi).size() - i + 1) * 4 << ", R0\n";
+					cout << " SUB R7, %D " << ((int)(cv -> djeca[2] -> tipovi).size() - i + 1) * 4 << ", R0\n";
 					cout << " STORE R1, (R0)\n";
 				}
 				cv -> tip = deklaracije[ime].back().second.second;
@@ -350,9 +353,9 @@ void postfiks_izraz(cvor *cv) {
 				REP(i, (int)(cv -> djeca[2] -> tipovi).size()) {
 					if(!ide_implicitna_pretvorba((cv -> djeca[2] -> tipovi)[i], deklaracija_funkcije[ime].first[i])) kraj(cv);
 					// kopiranje argumenata nakon povratne vrijednosti
-					cout << " SUB R7, " << i * 4 << ", R0\n";
+					cout << " ADD R7, %D " << i * 4 << ", R0\n";
 					cout << " LOAD R1, (R0)\n";
-					cout << " ADD R7, " << ((int)(cv -> djeca[2] -> tipovi).size() - i + 1) * 4 << ", R0\n";
+					cout << " SUB R7, %D " << ((int)(cv -> djeca[2] -> tipovi).size() - i + 1) * 4 << ", R0\n";
 					cout << " STORE R1, (R0)\n";
 				}
 				cv -> tip = deklaracija_funkcije[ime].second;
@@ -361,11 +364,12 @@ void postfiks_izraz(cvor *cv) {
 		}
 		else kraj(cv);
 		cv->l_izraz = 0;
-		cout << " ADD R7, 4, R0\n";
-		cout << " MOVE R0, R5\n";
+		cout << " SUB R7, 4, R5\n";
 		cout << " CALL F_" << veliko(ime) << "\n";
 		REP(i, (int)(cv -> djeca[2] -> tipovi).size()) cout << " POP R0\n";
 		obnovi_kontekst();
+		//cout << (cv -> tip) << endl;
+		if(cv -> tip != 12) cout << " PUSH R6\n";
 	}
 	if (cv->djeca.size() == 2 &&
 		cv->djeca[0]->uniformni_znak == "<postfiks_izraz>" &&
@@ -1017,14 +1021,16 @@ void naredba_skoka(cvor *cv) {
 	else if(dj[1] == "TOCKAZAREZ") {
 		if(!tipovi_povratnih_vrijednosti.size() || tipovi_povratnih_vrijednosti.back() != 12) kraj(cv); // ako nema fje ili ako ne vraca void
 		//
+		cout << " MOVE R5, R7\n"; // brisem  lokalne varijable sa stoga
 		cout << " RET\n";
 	}
 	else if(dj[1] == "<izraz>") {
 		izraz(cv -> djeca[1]);
 		if(!tipovi_povratnih_vrijednosti.size() || !ide_implicitna_pretvorba(cv -> djeca[1] -> tip, tipovi_povratnih_vrijednosti.back())) kraj(cv);
 		//
-		cout << " MOVE R0, R6\n";
 		cout << " POP R0\n";
+		cout << " MOVE R0, R6\n";
+		cout << " MOVE R5, R7\n";
 		cout << " RET\n";
 	}
 	else greska(cv);
@@ -1089,6 +1095,7 @@ void definicija_funkcije(cvor *cv) {
 		cout << "F_" << veliko(ime) << "\n";
 		if(definirana_funkcija[ime]) kraj(cv);
 		lista_parametara(cv -> djeca[3]);
+		cout << " SUB R7, %D " << 4 * (int)(cv -> djeca[3] -> tipovi).size() << ", R7\n";
 		if(deklarirana_funkcija[ime]) {
 			if(!vektori_jednaki(cv -> djeca[3] -> tipovi, deklaracija_funkcije[ime].first) || cv -> djeca[0] -> tip != deklaracija_funkcije[ime].second) kraj(cv);
 		}
@@ -1366,7 +1373,7 @@ int main() { //TODO povecaj brojac petlji na pravom mjestu za break i continue
 		//cout << tr -> rod -> uniformni_znak << " -> " << tr -> uniformni_znak << endl;
 	}
 	cout << " MOVE 40000, R7\n";
-	cout << " MOVE R7, R5\n";
+	cout << " SUB R7, 4, R5\n"; // ostavljam mjesto za povratnu vrijednost
 	cout << " CALL F_MAIN\n";
 	cout << " HALT\n";
 	prijevodna_jedinica(root);
