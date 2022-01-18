@@ -55,8 +55,10 @@ void kraj(cvor *zadnji) {
 int br_bloka = 0;
 map <string, vector <pair <int, int> > > varijable; // za svako ime varijable pamtim brojeve blokova deklaracija i tip
 map <string, vector <int> > odmak_na_stogu_lok;
-map <string, vector <int> > odmak_na_stogu_glob;
 int tr_odmak = 1;
+//map <string, vector <int> > odmak_na_stogu_glob;
+map <string, bool> postoji_glob;
+vector <pair <string, vector <int> > > glob_vr;
 
 string ime_fje;
 
@@ -197,16 +199,15 @@ void primarni_izraz(cvor *cv) {
 		}
 		else kraj(cv);
 		// TODO ak su polja ovdje ne bu dobro
+		// mozda treba pripazit ak je funkcija
 		if(odmak_na_stogu_lok[ime].size()) {
 			cout << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
 			cout << " SUB R5, R0, R0\n";
 			cout << " LOAD R0, (R0)\n";
 			cout << " PUSH R0\n";
 		}
-		else if(odmak_na_stogu_glob[ime].size()) {
-			cout << " MOVE %D " << 4 * odmak_na_stogu_glob[ime].back() << ", R0\n";
-			cout << " SUB R5, R0, R0\n";
-			cout << " LOAD R0, (R0)\n";
+		else if(postoji_glob[ime]) {
+			cout << " LOAD R0, (KONST_" << veliko(ime) << ")\n";
 			cout << " PUSH R0\n";
 		}
 		else {
@@ -598,8 +599,8 @@ void aditivni_izraz(cvor *cv) {
 
 		cv->tip = 1;
 		cv->l_izraz = 0;
+		cout << " POP R1\n"; // zamijenjen redoslijed popanja
 		cout << " POP R0\n";
-		cout << " POP R1\n";
 		if(cv -> djeca[1] -> uniformni_znak == "PLUS") cout << " ADD R0, R1, R0\n";
 		else cout << " SUB R0, R1, R0\n";
 		cout << " PUSH R0\n";
@@ -632,8 +633,8 @@ void odnosni_izraz(cvor *cv) {
 
 		cv->tip = 1;
 		cv->l_izraz = 0;
+		cout << " POP R1\n"; // zamijenjen redoslijed popanja
 		cout << " POP R0\n";
-		cout << " POP R1\n";
 		cout << " CMP R0, R1\n";
 		cout << " MOVE 0, R0\n";
 		if(cv -> djeca[1] -> uniformni_znak == "OP_LT") cout << " CALL_SLT PUNI_R0\n";
@@ -768,7 +769,7 @@ void bin_ili_izraz(cvor *cv) {
 	}
 }
 
-void log_i_izraz(cvor *cv) {
+void log_i_izraz(cvor *cv) { // TODO short circ, pazi na redoslijed popanja
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "<bin_ili_izraz>") {
 		bin_ili_izraz(cv->djeca[0]);
@@ -803,7 +804,7 @@ void log_i_izraz(cvor *cv) {
 	}
 }
 
-void log_ili_izraz(cvor *cv) {
+void log_ili_izraz(cvor *cv) { // TODO short circ, pazi na redoslijed popanja
 	if (cv->djeca.size() == 1 &&
 		cv->djeca[0]->uniformni_znak == "<log_i_izraz>") {
 		log_i_izraz(cv->djeca[0]);
@@ -1198,8 +1199,36 @@ void init_deklarator(cvor *cv) {
 	else if((int)dj.size() == 3) {
 		cv -> djeca[0] -> ntip = cv -> ntip;
 		izravni_deklarator(cv -> djeca[0]);
-		inicijalizator(cv -> djeca[2]);
-		if(cv -> djeca[0] -> tip >= 1 && cv -> djeca[0] -> tip <= 4) {
+		if(br_bloka) { // dodan if da ne ispisuje komande izvan funkcija
+			inicijalizator(cv -> djeca[2]);
+			cout << " POP R0\n";
+			cout << " POP R1\n";
+			cout << " PUSH R0\n";
+		}
+		else {
+			cvor *tr = cv -> djeca[2];
+			if((int)(tr -> djeca).size() == 1) {
+				while(tr -> uniformni_znak != "<primarni_izraz>") tr = tr -> djeca[0];
+				if(tr -> djeca[0] -> uniformni_znak != "BROJ") {
+					cout << "globalna varijabla definirana s ne konstantom... Joj\n";
+				}
+				else {
+					string sbroj = tr -> djeca[0] -> jedinka;
+					int vr;
+					try {
+						vr = stoi(sbroj, nullptr, (sbroj.size() >= 2 && (sbroj[1] == 'x' || sbroj[1] == 'X')) ? 0 : 10);
+					}
+					catch(...) {
+						kraj(cv);
+					}
+					glob_vr.back().second[0] = vr;
+				}
+			}
+			else {
+				// nizovi...
+			}
+		}
+		/*if(cv -> djeca[0] -> tip >= 1 && cv -> djeca[0] -> tip <= 4) {
 			if(!ide_implicitna_pretvorba(cv -> djeca[2] -> tip, cv -> djeca[0] -> tip)) kraj(cv); // u uputama forsiraju provjeru u T, ali je to identicno ko i u const(T)
 		}
 		else if(cv -> djeca[0] -> tip >= 5 && cv -> djeca[0] -> tip <= 8) {
@@ -1210,7 +1239,7 @@ void init_deklarator(cvor *cv) {
 				if(!ide_implicitna_pretvorba((cv -> djeca[2] -> tipovi)[i], T)) kraj(cv);
 			}
 		}
-		else kraj(cv);
+		else kraj(cv);*/ // zakomentirano da se nes ne zezne
 	}
 	else greska(cv);
 }
@@ -1224,6 +1253,15 @@ void izravni_deklarator(cvor *cv) {
 		if(varijable[ime].size() && varijable[ime].back().first == br_bloka) kraj(cv);
 		if(deklaracije[ime].size() && deklaracije[ime].back().first == br_bloka) kraj(cv); // dodano
 		varijable[ime].push_back(make_pair(br_bloka, cv -> tip));
+		if(!br_bloka) {
+			glob_vr.push_back(make_pair(ime, vector <int>(1, 0)));
+			postoji_glob[ime] = 1;
+		}
+		else {
+			cout << " PUSH R0\n";
+			odmak_na_stogu_lok[ime].push_back(tr_odmak);
+			tr_odmak++;
+		}
 	}
 	else if(dj[2] == "BROJ") {
 		cv -> tip = cv -> ntip + 4;
@@ -1241,6 +1279,7 @@ void izravni_deklarator(cvor *cv) {
 		}
 		cv -> br_elem = broj;
 		varijable[ime].push_back(make_pair(br_bloka, cv -> tip));
+		// TODO slicno za nizove
 	}
 	else if(dj[2] == "KR_VOID") {
 		cv -> tip = 10; // skroz nepotrebno
@@ -1393,6 +1432,10 @@ int main() { //TODO povecaj brojac petlji na pravom mjestu za break i continue
 	cout << " RET\n";
 	REP(i, (int)konstante.size()) {
 		cout << "KONST_" << i << " DW %D " << konstante[i] << "\n";
+	}
+	REP(i, (int)glob_vr.size()) {
+		cout << "KONST_" << veliko(glob_vr[i].first) << " DW %D " << glob_vr[i].second[0] << "\n";
+		for(int j = 1; j < (int)glob_vr[i].second.size(); j++) cout << " DW %D " << glob_vr[i].second[j] << "\n";
 	}
 	zavrsi(root);
 	return 0;
