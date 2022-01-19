@@ -978,6 +978,11 @@ void naredba_grananja(cvor *cv) {
 	if((int)dj.size() == 5) {
 		izraz(cv -> djeca[2]);
 		cout << " POP R0\n";
+
+		/* cast u bool */
+		cout << " CMP R0, 0\n";
+		cout << " CALL_NE PUNI_R0\n";
+
 		cout << " CMP R0, 0" << "\n";
 		cout << " JP_EQ IF" << if_label_counter << "\n";
 		int this_if_label_counter = if_label_counter++;
@@ -992,6 +997,11 @@ void naredba_grananja(cvor *cv) {
 		int end_if_label_counter = if_label_counter++;
 		int else_label_counter = if_label_counter++;
 		cout << " POP R0\n";
+
+		/* cast u bool */
+		cout << " CMP R0, 0\n";
+		cout << " CALL_NE PUNI_R0\n";
+
 		cout << " CMP R0, 0" << "\n";
 		cout << " JP_EQ IF" << else_label_counter << "\n";
 		naredba(cv -> djeca[4]);
