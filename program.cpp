@@ -1,4 +1,5 @@
 #include <bits/stdc++.h>
+/*#include "/Users/patrik/Documents/stdc++.h"*/
 using namespace std;
 
 #define REP(i, n) for(int i = 0; i < (n); i++)
@@ -71,6 +72,8 @@ vector <pair <string, pair <vector <int>, int> > > deklarirane_funkcije;
 
 int br_petlji = 0;
 vector <int> tipovi_povratnih_vrijednosti;
+
+int if_label_counter = 0;
 
 vector <string> daj_uniformne_znakove_djece(cvor *neki) {
 	vector <string> ret;
@@ -974,14 +977,28 @@ void naredba_grananja(cvor *cv) {
 	vector <string> dj = daj_uniformne_znakove_djece(cv);
 	if((int)dj.size() == 5) {
 		izraz(cv -> djeca[2]);
+		cout << " POP R0\n";
+		cout << " CMP R0, 0" << "\n";
+		cout << " JP_EQ IF" << if_label_counter << "\n";
+		int this_if_label_counter = if_label_counter++;
 		if(!ide_implicitna_pretvorba(cv -> djeca[2] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
 		naredba(cv -> djeca[4]);
+		cout << "IF" << this_if_label_counter << "\n";
 	}
 	else if((int)dj.size() == 7) {
 		izraz(cv -> djeca[2]);
 		if(!ide_implicitna_pretvorba(cv -> djeca[2] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
+
+		int end_if_label_counter = if_label_counter++;
+		int else_label_counter = if_label_counter++;
+		cout << " POP R0\n";
+		cout << " CMP R0, 0" << "\n";
+		cout << " JP_EQ IF" << else_label_counter << "\n";
 		naredba(cv -> djeca[4]);
+		cout << " JP IF" << end_if_label_counter << "\n";
+		cout << "IF" << else_label_counter << "\n";
 		naredba(cv -> djeca[6]);
+		cout << "IF" << end_if_label_counter << "\n";
 	}
 	else greska(cv);
 }
