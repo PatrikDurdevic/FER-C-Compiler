@@ -1,5 +1,5 @@
-#include <bits/stdc++.h>
-/*#include "/Users/patrik/Documents/stdc++.h"*/
+/*#include <bits/stdc++.h>*/
+#include "/Users/patrik/Documents/stdc++.h"
 using namespace std;
 
 #define REP(i, n) for(int i = 0; i < (n); i++)
@@ -75,6 +75,8 @@ int br_petlji = 0;
 vector <int> tipovi_povratnih_vrijednosti;
 
 int if_label_counter = 0;
+int for_check_label_counter = 0;
+int for_end_label_counter = 0;
 
 vector <string> daj_uniformne_znakove_djece(cvor *neki) {
 	vector <string> ret;
@@ -1099,26 +1101,65 @@ void naredba_grananja(cvor *cv) {
 void naredba_petlje(cvor *cv) {
 	vector <string> dj = daj_uniformne_znakove_djece(cv);
 	if(dj[4] == "<naredba>") {
+		int l_for_check_label_counter = for_check_label_counter++;
+		int l_for_end_label_counter = for_end_label_counter++;
+		cout << "FORCHECK" << l_for_check_label_counter << "\n";
 		izraz(cv -> djeca[2]);
+		cout << " POP R0\n";
+		
+		/* cast u bool */
+		cout << " CMP R0, 0\n";
+		cout << " CALL_NE PUNI_R0\n";
+		cout << " CMP R0, 0\n";
+		cout << " JP_EQ FOREND" << l_for_end_label_counter << "\n";
+
 		if(!ide_implicitna_pretvorba(cv -> djeca[2] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
 		br_petlji++;
 		naredba(cv -> djeca[4]);
+
+		cout << " JP FORCHECK" << l_for_check_label_counter << "\n";
+		cout << "FOREND" << l_for_end_label_counter << "\n";
 	}
 	else if(dj[4] == "D_ZAGRADA") {
 		izraz_naredba(cv -> djeca[2]);
+
+		int l_for_check_label_counter = for_check_label_counter++;
+		int l_for_end_label_counter = for_end_label_counter++;
+		cout << "FORCHECK" << l_for_check_label_counter << "\n";
 		izraz_naredba(cv -> djeca[3]);
+		cout << " POP R0\n";
+
+		/* cast u bool */
+		cout << " CMP R0, 0\n";
+		cout << " CALL_NE PUNI_R0\n";
+		cout << " CMP R0, 0\n";
+		cout << " JP_EQ FOREND" << l_for_end_label_counter << "\n";
 		if(!ide_implicitna_pretvorba(cv -> djeca[3] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
 		br_petlji++;
 		naredba(cv -> djeca[5]);
+		cout << " JP FORCHECK" << l_for_check_label_counter << "\n";
+		cout << "FOREND" << l_for_end_label_counter << "\n";
 	}
 	else if(dj[4] == "<izraz>") {
 		izraz_naredba(cv -> djeca[2]);
+
+		int l_for_check_label_counter = for_check_label_counter++;
+		int l_for_end_label_counter = for_end_label_counter++;
+		cout << "FORCHECK" << l_for_check_label_counter << "\n";
 		izraz_naredba(cv -> djeca[3]);
+		cout << " POP R0\n";
+
+		/* cast u bool */
+		cout << " CMP R0, 0\n";
+		cout << " CALL_NE PUNI_R0\n";
+		cout << " CMP R0, 0\n";
+		cout << " JP_EQ FOREND" << l_for_end_label_counter << "\n";
 		if(!ide_implicitna_pretvorba(cv -> djeca[3] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
 		izraz(cv -> djeca[4]);
 		br_petlji++;
 		naredba(cv -> djeca[6]);
-		
+		cout << " JP FORCHECK" << l_for_check_label_counter << "\n";
+		cout << "FOREND" << l_for_end_label_counter << "\n";
 	}
 	else greska(cv);
 	br_petlji--;
