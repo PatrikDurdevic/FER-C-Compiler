@@ -60,6 +60,7 @@ int tr_odmak = 1;
 //map <string, vector <int> > odmak_na_stogu_glob;
 map <string, bool> postoji_glob;
 vector <pair <string, vector <int> > > glob_vr;
+//map <string, int> vel_niza;
 
 string ime_fje;
 
@@ -104,7 +105,7 @@ void greska(cvor *cv) {
 	exit(1);
 }
 
-void spremi_kontekst() {
+void spremi_kontekst() { // realno treba samo R5
 	cout << " PUSH R0\n";
 	cout << " PUSH R1\n";
 	cout << " PUSH R2\n";
@@ -245,7 +246,17 @@ void primarni_izraz(cvor *cv) {
 			if(znak[2] != 't' && znak[2] != 'n' && znak[2] != '0' && znak[2] != '\'' && znak[2] != '\"' && znak[2] != '\\') kraj(cv);
 		}
 		else if(znak.size() > 4) kraj(cv);
-		
+		//int vr;
+		//if((int)znak.size() == 2) vr = 0;
+		//else if((int)znak.size() == 3) vr = znak[1];
+		//else if(znak[2] == 't') vr = '\t';
+		//else if(znak[2] == 'n') vr = '\n';
+		//else if(znak[2] == '0') vr = '\0';
+		//else if(znak[2] == '\'') vr = '\'';
+		//else if(znak[2] == '\"') vr = '\"';
+		//else if(znak[2] == '\\') vr = '\\';
+		//cout << " MOVE %D " << (int)vr << ", R0\n";
+		//cout << " PUSH R0\n";
 	}
 	else if(dj[0] == "NIZ_ZNAKOVA") {
 		cv -> tip = 8;
@@ -287,6 +298,30 @@ void postfiks_izraz(cvor *cv) {
 			kraj(cv);
 		}
 		izraz(cv->djeca[2]);
+		//
+		cout << " POP R0\n";
+		cout << " POP R1\n";
+		string ime = cv -> djeca[0] -> djeca[0] -> djeca[0] -> jedinka;
+		if(odmak_na_stogu_lok[ime].size()) {
+			cout << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R1\n";
+			cout << " SUB R5, R1, R1\n";
+			cout << " SUB R1, R0, R1\n";
+			cout << " SUB R1, R0, R1\n";
+			cout << " SUB R1, R0, R1\n";
+			cout << " SUB R1, R0, R1\n";
+			cout << " LOAD R0, (R1)\n";
+			cout << " PUSH R0\n";
+		}
+		else if(postoji_glob[ime]) {
+			cout << " MOVE KONST_" << veliko(ime) << ", R1\n";
+			cout << " ADD R1, R0, R1\n";
+			cout << " ADD R1, R0, R1\n";
+			cout << " ADD R1, R0, R1\n";
+			cout << " ADD R1, R0, R1\n";
+			cout << " LOAD R0, (R1)\n";
+			cout << " PUSH R0\n";
+		}
+		//
 		if (!ide_implicitna_pretvorba(cv->djeca[2]->tip, 1)) {
 			kraj(cv);
 		}
@@ -863,6 +898,54 @@ void izraz_pridruzivanja(cvor *cv) {
 		cv->tip = cv->djeca[0]->tip;
 		cv->l_izraz = 0;
 		// TODO dodi do IDN ili vrijednosti na obje strane i pridruzi
+		cvor *tr = cv -> djeca[0] -> djeca[0];
+		if(tr -> uniformni_znak == "<primarni_izraz>") {
+			string ime = tr -> djeca[0] -> jedinka;
+			if(odmak_na_stogu_lok[ime].size()) {
+				cout << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
+				cout << " SUB R5, R0, R0\n";
+				cout << " POP R1\n";
+				cout << " STORE R1, (R0)\n";
+				cout << " PUSH R1\n";
+			}
+			else if(postoji_glob[ime]) {
+				cout << " POP R0\n";
+				cout << " STORE R0, (KONST_" << veliko(ime) << ")\n";
+				cout << " PUSH R0\n";
+			}
+		}
+		else if(tr -> uniformni_znak == "<postfiks_izraz>") {
+			string ime = tr -> djeca[0] -> djeca[0] -> jedinka;
+			cvor *jos = cv -> djeca[0] -> djeca[2];
+			while(jos -> uniformni_znak != "<primarni_izraz>") jos = jos -> djeca[0];
+			string sbroj = jos -> djeca[0] -> jedinka;
+			int odmak;
+			try {
+				odmak = stoi(sbroj, nullptr, (sbroj.size() >= 2 && (sbroj[1] == 'x' || sbroj[1] == 'X')) ? 0 : 10);
+			}
+			catch(...) {
+				kraj(cv);
+			}
+			//cout << "Eto " << odmak << endl;
+			if(odmak_na_stogu_lok[ime].size()) {
+				cout << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
+				cout << " SUB R5, R0, R0\n";
+				cout << " SUB R0, %D " << 4 * odmak << ", R0\n";
+				cout << " POP R1\n";
+				cout << " STORE R1, (R0)\n";
+				cout << " PUSH R1\n";
+			}
+			else if(postoji_glob[ime]) {
+				cout << " MOVE KONST_" << veliko(ime) << ", R0\n";
+				cout << " ADD R0, %D " << 4 * odmak << ", R0\n";
+				cout << " POP R1\n";
+				cout << " STORE R1, (R0)\n";
+				cout << " PUSH R1\n";
+			}
+		}
+		else {
+			cout << "zas je tu?\n"; // TODO obrisi ovo
+		}
 	}
 }
 
@@ -1141,6 +1224,7 @@ void definicija_funkcije(cvor *cv) {
 	}
 	else greska(cv);
 	tipovi_povratnih_vrijednosti.pop_back();
+	tr_odmak = 1; // dodano da se resetira odmak
 }
 
 void lista_parametara(cvor *cv) {
@@ -1231,13 +1315,14 @@ void init_deklarator(cvor *cv) {
 			cout << " POP R0\n";
 			cout << " POP R1\n";
 			cout << " PUSH R0\n";
+			// TODO ifaj i pitaj ak je niz pa prekopiraj
 		}
 		else {
 			cvor *tr = cv -> djeca[2];
 			if((int)(tr -> djeca).size() == 1) {
 				while(tr -> uniformni_znak != "<primarni_izraz>") tr = tr -> djeca[0];
 				if(tr -> djeca[0] -> uniformni_znak != "BROJ") {
-					cout << "globalna varijabla definirana s ne konstantom... Joj\n";
+					cout << "globalna varijabla definirana s ne konstantom... Joj\n"; // TODO implementiraj za niz znakova za nizove
 				}
 				else {
 					string sbroj = tr -> djeca[0] -> jedinka;
@@ -1252,7 +1337,43 @@ void init_deklarator(cvor *cv) {
 				}
 			}
 			else {
-				// nizovi...
+				string ime = cv -> djeca[0] -> djeca[0] -> jedinka;
+				tr = tr -> djeca[1];
+				int brojac = 0;
+				do {
+					cvor *tr_izraz;
+					if((int)(tr -> djeca).size() == 1) tr_izraz = tr -> djeca[0];
+					else tr_izraz = tr -> djeca[2];
+					while(tr_izraz -> uniformni_znak != "<primarni_izraz>") tr_izraz = tr_izraz -> djeca[0];
+					int vr = 0;
+					if(tr_izraz -> djeca[0] -> uniformni_znak == "BROJ") {
+						string sbroj = tr_izraz -> djeca[0] -> jedinka;
+						try {
+							vr = stoi(sbroj, nullptr, (sbroj.size() >= 2 && (sbroj[1] == 'x' || sbroj[1] == 'X')) ? 0 : 10);
+						}
+						catch(...) {
+							kraj(cv);
+						}
+					}
+					else if(tr_izraz -> djeca[0] -> uniformni_znak == "ZNAK") {
+						string znak = tr_izraz -> djeca[0] -> jedinka;
+						if((int)znak.size() == 2) vr = 0;
+						else if((int)znak.size() == 3) vr = znak[1];
+						else if(znak[2] == 't') vr = '\t';
+						else if(znak[2] == 'n') vr = '\n';
+						else if(znak[2] == '0') vr = '\0';
+						else if(znak[2] == '\'') vr = '\'';
+						else if(znak[2] == '\"') vr = '\"';
+						else if(znak[2] == '\\') vr = '\\';
+					}
+					//cout << " MOVE %D " << (int)vr << ", R0\n";
+					//cout << " MOVE KONST_" << veliko(ime) << ", R1\n";
+					//cout << " ADD R1, %D " << 4 * brojac << "\n";
+					//cout << " STORE R0, (R1)\n";
+					glob_vr.back().second[(int)glob_vr.back().second.size() - 1 - brojac] = vr;
+					tr = tr -> djeca[0];
+					brojac++;
+				} while(tr -> uniformni_znak != "<izraz_pridruzivanja>");
 			}
 		}
 		/*if(cv -> djeca[0] -> tip >= 1 && cv -> djeca[0] -> tip <= 4) {
@@ -1306,7 +1427,15 @@ void izravni_deklarator(cvor *cv) {
 		}
 		cv -> br_elem = broj;
 		varijable[ime].push_back(make_pair(br_bloka, cv -> tip));
-		// TODO slicno za nizove
+		if(!br_bloka) {
+			glob_vr.push_back(make_pair(ime, vector <int>(broj, 0)));
+			postoji_glob[ime] = 1;
+		}
+		else {
+			REP(i, broj) cout << " PUSH R0\n";
+			odmak_na_stogu_lok[ime].push_back(tr_odmak);
+			tr_odmak += broj; // TODO problem je kad je niz u scopeu, resetiraj na izlazu iz definicije funkcije
+		}
 	}
 	else if(dj[2] == "KR_VOID") {
 		cv -> tip = 10; // skroz nepotrebno
