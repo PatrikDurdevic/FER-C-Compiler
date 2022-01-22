@@ -1,5 +1,5 @@
-/*#include <bits/stdc++.h>*/
-#include "/Users/patrik/Documents/stdc++.h"
+#include <bits/stdc++.h>
+//#include "/Users/patrik/Documents/stdc++.h"
 using namespace std;
 
 #define REP(i, n) for(int i = 0; i < (n); i++)
@@ -133,6 +133,49 @@ string veliko(string ime) {
 }
 
 vector <int> konstante;
+vector <pair <pair <string, int>, bool> > post_varijable;
+
+void povecaj_post_varijable() {
+	for(pair <pair <string, int>, bool> p : post_varijable) {
+		if(p.first.second == -1) {
+			if(odmak_na_stogu_lok[p.first.first].size()) {
+				cout << " MOVE %D " << 4 * odmak_na_stogu_lok[p.first.first].back() << ", R0\n";
+				cout << " SUB R5, R0, R0\n";
+				cout << " LOAD R1, (R0)\n";
+				if(p.second) cout << " SUB R1, 1, R1\n";
+				else cout << " ADD R1, 1, R1\n";
+				cout << " STORE R1, (R0)\n";
+			}
+			else if(postoji_glob[p.first.first]) {
+				cout << " LOAD R0, (KONST_" << veliko(p.first.first) << ")\n";
+				if(p.second) cout << " SUB R0, 1, R0\n";
+				else cout << " ADD R0, 1, R0\n";
+				cout << " STORE R0, (KONST_" << veliko(p.first.first) << ")\n";
+			}
+		}
+		else {
+			if(odmak_na_stogu_lok[p.first.first].size()) {
+				cout << " MOVE %D " << 4 * odmak_na_stogu_lok[p.first.first].back() << ", R0\n";
+				cout << " SUB R5, R0, R0\n";
+				cout << " SUB R0, %D " << 4 * p.first.second << ", R0\n";
+				cout << " LOAD R1, (R0)\n";
+				if(p.second) cout << " SUB R1, 1, R1\n";
+				else cout << " ADD R1, 1, R1\n";
+				cout << " STORE R1, (R0)\n";
+			}
+			else if(postoji_glob[p.first.first]) {
+				cout << " MOVE KONST_" << veliko(p.first.first) << ", R0\n";
+				cout << " ADD R0, %D " << 4 * p.first.second << ", R0\n";
+				cout << " LOAD R1, (R0)\n";
+				if(p.second) cout << " SUB R1, 1, R1\n";
+				else cout << " ADD R1, 1, R1\n";
+				cout << " STORE R1, (R0)\n";
+			}
+		}
+	}
+	post_varijable.clear();
+	return;
+}
 
 // deklaracije svih provjernih funkcija
 void primarni_izraz(cvor *cv);
@@ -424,14 +467,35 @@ void postfiks_izraz(cvor *cv) {
 		cv->tip = 1;
 		cv->l_izraz = 0;
 		if(cv -> djeca[1] -> uniformni_znak == "OP_INC") {
-			cout << " POP R0\n";
-			cout << " ADD R0, 1, R0\n";
+			//cout << " POP R0\n";
+			//cout << " ADD R0, 1, R0\n";
 			cout << " PUSH R0\n";
+			post_varijable.push_back(make_pair(make_pair("", 0), 0));
 		}
 		else {
-			cout << " POP R0\n";
-			cout << " SUB R0, 1, R0\n";
+			//cout << " POP R0\n";
+			//cout << " SUB R0, 1, R0\n";
 			cout << " PUSH R0\n";
+			post_varijable.push_back(make_pair(make_pair("", 0), 1));
+		}
+		cvor *tr = cv -> djeca[0] -> djeca[0];
+		if(tr -> uniformni_znak == "<primarni_izraz>") {
+			post_varijable.back().first.first = tr -> djeca[0] -> jedinka;
+			post_varijable.back().first.second = -1;
+		}
+		else if(tr -> uniformni_znak == "<postfiks_izraz>") {
+			post_varijable.back().first.first = tr -> djeca[0] -> djeca[0] -> jedinka;
+			cvor *jos = cv -> djeca[0] -> djeca[2];
+			while(jos -> uniformni_znak != "<primarni_izraz>") jos = jos -> djeca[0];
+			string sbroj = jos -> djeca[0] -> jedinka;
+			int odmak;
+			try {
+				odmak = stoi(sbroj, nullptr, (sbroj.size() >= 2 && (sbroj[1] == 'x' || sbroj[1] == 'X')) ? 0 : 10);
+			}
+			catch(...) {
+				kraj(cv);
+			}
+			post_varijable.back().first.second = odmak;
 		}
 	}
 }
@@ -483,6 +547,51 @@ void unarni_izraz(cvor *cv) {
 			cout << " POP R0\n";
 			cout << " SUB R0, 1, R0\n";
 			cout << " PUSH R0\n";
+		}
+		cvor *tr = cv -> djeca[1] -> djeca[0] -> djeca[0];
+		if(tr -> uniformni_znak == "<primarni_izraz>") {
+			string ime = tr -> djeca[0] -> jedinka;
+			if(odmak_na_stogu_lok[ime].size()) {
+				cout << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
+				cout << " SUB R5, R0, R0\n";
+				cout << " POP R1\n";
+				cout << " STORE R1, (R0)\n";
+				cout << " PUSH R1\n";
+			}
+			else if(postoji_glob[ime]) {
+				cout << " POP R0\n";
+				cout << " STORE R0, (KONST_" << veliko(ime) << ")\n";
+				cout << " PUSH R0\n";
+			}
+		}
+		else if(tr -> uniformni_znak == "<postfiks_izraz>") {
+			string ime = tr -> djeca[0] -> djeca[0] -> jedinka;
+			cvor *jos = cv -> djeca[0] -> djeca[2];
+			while(jos -> uniformni_znak != "<primarni_izraz>") jos = jos -> djeca[0];
+			string sbroj = jos -> djeca[0] -> jedinka;
+			int odmak;
+			try {
+				odmak = stoi(sbroj, nullptr, (sbroj.size() >= 2 && (sbroj[1] == 'x' || sbroj[1] == 'X')) ? 0 : 10);
+			}
+			catch(...) {
+				kraj(cv);
+			}
+			//cout << "Eto " << odmak << endl;
+			if(odmak_na_stogu_lok[ime].size()) {
+				cout << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
+				cout << " SUB R5, R0, R0\n";
+				cout << " SUB R0, %D " << 4 * odmak << ", R0\n";
+				cout << " POP R1\n";
+				cout << " STORE R1, (R0)\n";
+				cout << " PUSH R1\n";
+			}
+			else if(postoji_glob[ime]) {
+				cout << " MOVE KONST_" << veliko(ime) << ", R0\n";
+				cout << " ADD R0, %D " << 4 * odmak << ", R0\n";
+				cout << " POP R1\n";
+				cout << " STORE R1, (R0)\n";
+				cout << " PUSH R1\n";
+			}
 		}
 	}
 	if (cv->djeca.size() == 2 &&
@@ -1056,12 +1165,14 @@ void izraz_naredba(cvor *cv) {
 		cv -> tip = cv -> djeca[0] -> tip;
 	}
 	else greska(cv);
+	povecaj_post_varijable();
 }
 
 void naredba_grananja(cvor *cv) {
 	vector <string> dj = daj_uniformne_znakove_djece(cv);
 	if((int)dj.size() == 5) {
 		izraz(cv -> djeca[2]);
+		povecaj_post_varijable();
 		cout << " POP R0\n";
 
 		/* cast u bool */
@@ -1081,6 +1192,7 @@ void naredba_grananja(cvor *cv) {
 
 		int end_if_label_counter = if_label_counter++;
 		int else_label_counter = if_label_counter++;
+		povecaj_post_varijable();
 		cout << " POP R0\n";
 
 		/* cast u bool */
@@ -1105,6 +1217,7 @@ void naredba_petlje(cvor *cv) {
 		int l_for_end_label_counter = for_end_label_counter++;
 		cout << "FORCHECK" << l_for_check_label_counter << "\n";
 		izraz(cv -> djeca[2]);
+		povecaj_post_varijable();
 		cout << " POP R0\n";
 		
 		/* cast u bool */
@@ -1156,6 +1269,7 @@ void naredba_petlje(cvor *cv) {
 		cout << " JP_EQ FOREND" << l_for_end_label_counter << "\n";
 		if(!ide_implicitna_pretvorba(cv -> djeca[3] -> tip, 1)) kraj(cv); // provjeri da se tip moze implicitno pretvorit u int
 		izraz(cv -> djeca[4]);
+		povecaj_post_varijable();
 		br_petlji++;
 		naredba(cv -> djeca[6]);
 		cout << " JP FORCHECK" << l_for_check_label_counter << "\n";
@@ -1186,6 +1300,7 @@ void naredba_skoka(cvor *cv) {
 		cout << " RET\n";
 	}
 	else greska(cv);
+	povecaj_post_varijable();
 }
 
 void prijevodna_jedinica(cvor *cv) {
@@ -1324,6 +1439,7 @@ void deklaracija(cvor *cv) {
 		lista_init_deklaratora(cv -> djeca[1]);
 	}
 	else greska(cv);
+	povecaj_post_varijable();
 }
 
 void lista_init_deklaratora(cvor *cv) {
@@ -1362,10 +1478,10 @@ void init_deklarator(cvor *cv) {
 			cvor *tr = cv -> djeca[2];
 			if((int)(tr -> djeca).size() == 1) {
 				while(tr -> uniformni_znak != "<primarni_izraz>") tr = tr -> djeca[0];
-				if(tr -> djeca[0] -> uniformni_znak != "BROJ") {
+				if(tr -> djeca[0] -> uniformni_znak != "BROJ" && tr -> djeca[0] -> uniformni_znak != "ZNAK") {
 					cout << "globalna varijabla definirana s ne konstantom... Joj\n"; // TODO implementiraj za niz znakova za nizove
 				}
-				else {
+				else if(tr -> djeca[0] -> uniformni_znak == "BROJ"){
 					string sbroj = tr -> djeca[0] -> jedinka;
 					int vr;
 					try {
@@ -1376,11 +1492,25 @@ void init_deklarator(cvor *cv) {
 					}
 					glob_vr.back().second[0] = vr;
 				}
+				else {
+					int vr;
+					string znak = tr-> djeca[0] -> jedinka;
+					if((int)znak.size() == 2) vr = 0;
+					else if((int)znak.size() == 3) vr = znak[1];
+					else if(znak[2] == 't') vr = '\t';
+					else if(znak[2] == 'n') vr = '\n';
+					else if(znak[2] == '0') vr = '\0';
+					else if(znak[2] == '\'') vr = '\'';
+					else if(znak[2] == '\"') vr = '\"';
+					else if(znak[2] == '\\') vr = '\\';
+					glob_vr.back().second[0] = (int)vr;
+				}
 			}
 			else {
 				string ime = cv -> djeca[0] -> djeca[0] -> jedinka;
 				tr = tr -> djeca[1];
 				int brojac = 0;
+				vector <char> ini;
 				do {
 					cvor *tr_izraz;
 					if((int)(tr -> djeca).size() == 1) tr_izraz = tr -> djeca[0];
@@ -1411,10 +1541,16 @@ void init_deklarator(cvor *cv) {
 					//cout << " MOVE KONST_" << veliko(ime) << ", R1\n";
 					//cout << " ADD R1, %D " << 4 * brojac << "\n";
 					//cout << " STORE R0, (R1)\n";
-					glob_vr.back().second[(int)glob_vr.back().second.size() - 1 - brojac] = vr;
+					//
+					//glob_vr.back().second[(int)glob_vr.back().second.size() - 1 - brojac] = vr;
+					ini.push_back(vr);
 					tr = tr -> djeca[0];
 					brojac++;
 				} while(tr -> uniformni_znak != "<izraz_pridruzivanja>");
+				reverse(ini.begin(), ini.end());
+				REP(i, (int)ini.size()) {
+					glob_vr.back().second[i] = ini[i];
+				}
 			}
 		}
 		/*if(cv -> djeca[0] -> tip >= 1 && cv -> djeca[0] -> tip <= 4) {
