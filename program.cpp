@@ -1,5 +1,5 @@
-#include <bits/stdc++.h>
-//#include "/Users/patrik/Documents/stdc++.h"
+/*#include <bits/stdc++.h>*/
+#include "/Users/patrik/Documents/stdc++.h"
 using namespace std;
 
 #define REP(i, n) for(int i = 0; i < (n); i++)
@@ -77,6 +77,7 @@ vector <int> tipovi_povratnih_vrijednosti;
 int if_label_counter = 0;
 int for_check_label_counter = 0;
 int for_end_label_counter = 0;
+int multipl_label_counter = 0;
 
 vector <string> daj_uniformne_znakove_djece(cvor *neki) {
 	vector <string> ret;
@@ -718,6 +719,51 @@ void multiplikativni_izraz(cvor *cv) {
 		cv->tip = 1;
 		cv->l_izraz = 0;
 		// TODO
+
+		cout << " POP R1\n"; // zamijenjen redoslijed popanja
+		cout << " POP R0\n";
+		if(cv -> djeca[1] -> uniformni_znak == "OP_PUTA") {
+			cout << " MOVE 0, R4\n";
+			cout << " CMP R0, 0\n";
+			cout << " CALL_SLT DODAJ_R4\n";
+			cout << " CMP R0, 0\n";
+			cout << " CALL_SLT NEG_R0\n";
+			cout << " CMP R1, 0\n";
+			cout << " CALL_SLT DODAJ_R4\n";
+			cout << " CMP R1, 0\n";
+			cout << " CALL_SLT NEG_R1\n";
+
+			cout << " MOVE R0, R3\n";
+			cout << " MOVE 0, R0\n";
+			cout << "MNOZI" << multipl_label_counter << " SUB R1, 1, R1\n";
+			cout << " CMP R1, 0\n";
+			cout << " JP_SLT KRAJ_MNOZI" << multipl_label_counter << "\n";
+			cout << " ADD R0, R3, R0\n";
+			cout << " JP MNOZI" << multipl_label_counter << "\n";
+			cout << "KRAJ_MNOZI" << multipl_label_counter << "\n";
+			cout << " CMP R4, 1\n";
+			cout << " CALL_EQ NEG_R0\n";
+		} else if(cv -> djeca[1] -> uniformni_znak == "OP_DIJELI") {
+			cout << "DIJELI" << multipl_label_counter << " MOVE 0, R3\n";
+			cout << " SUB R0, R1, R0\n";
+			cout << " CMP R0, 0\n";
+			cout << " JP_SLT KRAJ_DIJELI" << multipl_label_counter << "\n";
+			cout << " ADD R0, R1, R0\n";
+			cout << " ADD R3, 1, R1\n";
+			cout << " JP DIJELI" << multipl_label_counter << "\n";
+			cout << "KRAJ_DIJELI" << multipl_label_counter << " MOVE R3, R0\n";
+		} else if(cv -> djeca[1] -> uniformni_znak == "OP_MOD") {
+			cout << "MOD" << multipl_label_counter << " MOVE 0, R3\n";
+			cout << " SUB R0, R1, R0\n";
+			cout << " CMP R0, 0\n";
+			cout << " JP_SLT KRAJ_MOD" << multipl_label_counter << "\n";
+			cout << " ADD R0, R1, R0\n";
+			cout << " ADD R3, 1, R1\n";
+			cout << " JP MOD" << multipl_label_counter << "\n";
+			cout << "KRAJ_MOD" << multipl_label_counter << " SUB 0, R0, R0\n";
+		}
+		multipl_label_counter++;
+		cout << " PUSH R0\n";
 	}
 }
 
@@ -1762,6 +1808,14 @@ int main() { //TODO povecaj brojac petlji na pravom mjestu za break i continue
 		}
 	}
 	cout << "PUNI_R0 MOVE 1, R0\n";
+	cout << " RET\n";
+	cout << "DODAJ_R4 ADD R4, 1, R4\n";
+	cout << " RET\n";
+	cout << "NEG_R0 MOVE 0, R5\n";
+	cout << " SUB R5, R0, R0\n";
+	cout << " RET\n";
+	cout << "NEG_R1 MOVE 0, R5\n";
+	cout << " SUB R5, R1, R1\n";
 	cout << " RET\n";
 	REP(i, (int)konstante.size()) {
 		cout << "KONST_" << i << " DW %D " << konstante[i] << "\n";
