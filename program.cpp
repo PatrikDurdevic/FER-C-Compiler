@@ -778,14 +778,15 @@ void multiplikativni_izraz(cvor *cv) {
 
 			cout << "MOD" << multipl_label_counter << "\n";
 			cout << " SUB R0, R1, R0\n";
-			
+
 			cout << " CMP R0, 0\n";
-			cout << " JP_SLT KRAJ_MOD" << multipl_label_counter << "\n";
+			cout << " JP_SLT KRAJ1_MOD" << multipl_label_counter << "\n";
 			cout << " CMP R0, 0\n";
 			cout << " JP_EQ KRAJ_MOD" << multipl_label_counter << "\n";
 
 			cout << " JP MOD" << multipl_label_counter << "\n";
-			cout << "KRAJ_MOD" << multipl_label_counter << " CALL NEG_R0\n";
+			cout << "KRAJ1_MOD" << multipl_label_counter << " ADD R0, R1, R0\n";
+			cout << "KRAJ_MOD" << multipl_label_counter << "\n";
 
 			//cout << " CMP R4, 1\n";
 			//cout << " CALL_EQ NEG_R0\n";
