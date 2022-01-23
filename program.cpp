@@ -5,8 +5,8 @@ using namespace std;
 #define REP(i, n) for(int i = 0; i < (n); i++)
 typedef long long int ll;
 
-//ofstream out("a.frisc");
-#define out cout
+ofstream out("a.frisc");
+//#define out cout
 
 // TODO ako je petlja jednoretcana bez {}, trenutni analizator ne dopusta deklaraciju u novom lokalnom djelokrugu
 
@@ -1617,9 +1617,11 @@ void init_deklarator(cvor *cv) {
 				}
 				else {
 					inicijalizator(cv -> djeca[2]);
-					out << " POP R0\n";
+					out << " MOVE %D " << 4 * odmak_na_stogu_lok[cv -> djeca[0] -> djeca[0] -> jedinka].back() << ", R0\n";
+					out << " SUB R5, R0, R0\n";
 					out << " POP R1\n";
-					out << " PUSH R0\n";
+					//out << " PUSH R0\n";
+					out << " STORE R1, (R0)\n";
 				}
 			}
 			else {
