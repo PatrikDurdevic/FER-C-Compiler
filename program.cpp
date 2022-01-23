@@ -661,7 +661,7 @@ void unarni_izraz(cvor *cv) {
 			out << " CALL_EQ PUNI_R0\n";
 			out << " PUSH R0\n";
 		}
-		else if(cv -> djeca[0] -> djeca[0] -> uniformni_znak != "PLUS") out << "YOOOOOO, ne valja tu nes\n";
+		//else if(cv -> djeca[0] -> djeca[0] -> uniformni_znak != "PLUS") out << "YOOOOOO, ne valja tu nes\n";
 		// TODO ostalo
 	}
 }
@@ -1166,7 +1166,7 @@ void izraz_pridruzivanja(cvor *cv) {
 			}
 		}
 		else {
-			out << "zas je tu?\n"; // TODO obrisi ovo
+			//out << "zas je tu?\n"; // TODO obrisi ovo
 		}
 	}
 }
@@ -1475,7 +1475,7 @@ void definicija_funkcije(cvor *cv) {
 		out << "F_" << veliko(ime) << "\n";
 		if(definirana_funkcija[ime]) kraj(cv);
 		lista_parametara(cv -> djeca[3]);
-		out << " SUB R7, %D " << 4 * ((int)(cv -> djeca[3] -> tipovi).size() + 10) << ", R7\n"; // hmm
+		out << " SUB R7, %D " << 4 * ((int)(cv -> djeca[3] -> tipovi).size() + 0) << ", R7\n"; // hmm
 		if(deklarirana_funkcija[ime]) {
 			if(!vektori_jednaki(cv -> djeca[3] -> tipovi, deklaracija_funkcije[ime].first) || cv -> djeca[0] -> tip != deklaracija_funkcije[ime].second) kraj(cv);
 		}
@@ -1586,8 +1586,13 @@ void init_deklarator(cvor *cv) {
 		if(br_bloka) { // dodan if da ne ispisuje komande izvan funkcija
 			cvor *tr = cv -> djeca[2];
 			if((int)(tr -> djeca).size() == 1) {
-				while(tr -> uniformni_znak != "<primarni_izraz>") tr = tr -> djeca[0];
-				if(tr -> djeca[0] -> uniformni_znak != "BROJ" && tr -> djeca[0] -> uniformni_znak != "ZNAK") {
+				//while(tr -> uniformni_znak != "<primarni_izraz>") tr = tr -> djeca[0];
+				//if(tr -> djeca[0] -> uniformni_znak != "BROJ" && tr -> djeca[0] -> uniformni_znak != "ZNAK") {
+				if(cv -> djeca[0] -> tip >= 5 && cv -> djeca[0] -> tip <= 8) {
+					while(tr -> uniformni_znak != "<primarni_izraz>") {
+						tr = tr -> djeca[0];
+						if(tr -> uniformni_znak == "<primarni_izraz>" && (tr -> djeca).size() == 3) tr = tr -> djeca[1];
+					}
 					string niz_znakova = tr -> djeca[0] -> jedinka;
 					int br = 0, vr = 0;
 					out << " MOVE %D " << 4 * odmak_na_stogu_lok[cv -> djeca[0] -> djeca[0] -> jedinka].back() << ", R0\n";
@@ -1626,7 +1631,17 @@ void init_deklarator(cvor *cv) {
 					cvor *tr_izraz;
 					if((int)(tr -> djeca).size() == 1) tr_izraz = tr -> djeca[0];
 					else tr_izraz = tr -> djeca[2];
-					while(tr_izraz -> uniformni_znak != "<primarni_izraz>") tr_izraz = tr_izraz -> djeca[0];
+					bool neg = 0, til = 0, sup = 0;
+					while(tr_izraz -> uniformni_znak != "<primarni_izraz>") {
+						tr_izraz = tr_izraz -> djeca[0];
+						if(tr -> uniformni_znak == "<primarni_izraz>" && (tr -> djeca).size() == 3) tr = tr -> djeca[1];
+						else if(tr -> uniformni_znak == "<unarni_izraz>" && tr -> djeca[0] -> uniformni_znak == "<unarni_operator>") {
+							if(tr -> djeca[0] -> djeca[0] -> uniformni_znak == "MINUS") neg = 1;
+							else if(tr -> djeca[0] -> djeca[0] -> uniformni_znak == "OP_TILDA") til = 1;
+							else if(tr -> djeca[0] -> djeca[0] -> uniformni_znak == "OP_NEG") sup = 1;
+							tr = tr -> djeca[1];
+						}
+					}
 					int vr = 0;
 					if(tr_izraz -> djeca[0] -> uniformni_znak == "BROJ") {
 						string sbroj = tr_izraz -> djeca[0] -> jedinka;
@@ -1648,6 +1663,9 @@ void init_deklarator(cvor *cv) {
 						else if(znak[2] == '\"') vr = '\"';
 						else if(znak[2] == '\\') vr = '\\';
 					}
+					if(neg) vr = -vr;
+					if(til) vr = ~vr;
+					if(sup) vr = !vr;
 					ini.push_back(vr);
 					tr = tr -> djeca[0];
 					brojac++;
@@ -1666,7 +1684,17 @@ void init_deklarator(cvor *cv) {
 		else {
 			cvor *tr = cv -> djeca[2];
 			if((int)(tr -> djeca).size() == 1) {
-				while(tr -> uniformni_znak != "<primarni_izraz>") tr = tr -> djeca[0];
+				bool neg = 0, til = 0, sup = 0;
+				while(tr -> uniformni_znak != "<primarni_izraz>") {
+					tr = tr -> djeca[0];
+					if(tr -> uniformni_znak == "<primarni_izraz>" && (tr -> djeca).size() == 3) tr = tr -> djeca[1];
+					else if(tr -> uniformni_znak == "<unarni_izraz>" && tr -> djeca[0] -> uniformni_znak == "<unarni_operator>") {
+						if(tr -> djeca[0] -> djeca[0] -> uniformni_znak == "MINUS") neg = 1;
+						else if(tr -> djeca[0] -> djeca[0] -> uniformni_znak == "OP_TILDA") til = 1;
+						else if(tr -> djeca[0] -> djeca[0] -> uniformni_znak == "OP_NEG") sup = 1;
+						tr = tr -> djeca[1];
+					}
+				}
 				if(tr -> djeca[0] -> uniformni_znak != "BROJ" && tr -> djeca[0] -> uniformni_znak != "ZNAK") {
 					string niz_znakova = tr -> djeca[0] -> jedinka;
 					int br = 0, vr = 0;
@@ -1691,6 +1719,9 @@ void init_deklarator(cvor *cv) {
 					catch(...) {
 						kraj(cv);
 					}
+					if(neg) vr = -vr;
+					if(til) vr = ~vr;
+					if(sup) vr = !vr;
 					glob_vr.back().second[0] = vr;
 				}
 				else {
@@ -1704,7 +1735,10 @@ void init_deklarator(cvor *cv) {
 					else if(znak[2] == '\'') vr = '\'';
 					else if(znak[2] == '\"') vr = '\"';
 					else if(znak[2] == '\\') vr = '\\';
-					glob_vr.back().second[0] = (int)vr;
+					if(neg) vr = -vr;
+					if(til) vr = ~vr;
+					if(sup) vr = !vr;
+					glob_vr.back().second[0] = vr;
 				}
 			}
 			else {
@@ -1716,7 +1750,17 @@ void init_deklarator(cvor *cv) {
 					cvor *tr_izraz;
 					if((int)(tr -> djeca).size() == 1) tr_izraz = tr -> djeca[0];
 					else tr_izraz = tr -> djeca[2];
-					while(tr_izraz -> uniformni_znak != "<primarni_izraz>") tr_izraz = tr_izraz -> djeca[0];
+					bool neg = 0, til = 0, sup = 0;
+					while(tr_izraz -> uniformni_znak != "<primarni_izraz>") {
+						tr_izraz = tr_izraz -> djeca[0];
+						if(tr -> uniformni_znak == "<primarni_izraz>" && (tr -> djeca).size() == 3) tr = tr -> djeca[1];
+						else if(tr -> uniformni_znak == "<unarni_izraz>" && tr -> djeca[0] -> uniformni_znak == "<unarni_operator>") {
+							if(tr -> djeca[0] -> djeca[0] -> uniformni_znak == "MINUS") neg = 1;
+							else if(tr -> djeca[0] -> djeca[0] -> uniformni_znak == "OP_TILDA") til = 1;
+							else if(tr -> djeca[0] -> djeca[0] -> uniformni_znak == "OP_NEG") sup = 1;
+							tr = tr -> djeca[1];
+						}
+					}
 					int vr = 0;
 					if(tr_izraz -> djeca[0] -> uniformni_znak == "BROJ") {
 						string sbroj = tr_izraz -> djeca[0] -> jedinka;
@@ -1744,6 +1788,9 @@ void init_deklarator(cvor *cv) {
 					//out << " STORE R0, (R1)\n";
 					//
 					//glob_vr.back().second[(int)glob_vr.back().second.size() - 1 - brojac] = vr;
+					if(neg) vr = -vr;
+					if(til) vr = ~vr;
+					if(sup) vr = !vr;
 					ini.push_back(vr);
 					tr = tr -> djeca[0];
 					brojac++;
