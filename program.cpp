@@ -5,7 +5,8 @@ using namespace std;
 #define REP(i, n) for(int i = 0; i < (n); i++)
 typedef long long int ll;
 
-ofstream out("a.frisc");
+//ofstream out("a.frisc");
+#define out cout
 
 // TODO ako je petlja jednoretcana bez {}, trenutni analizator ne dopusta deklaraciju u novom lokalnom djelokrugu
 
@@ -111,21 +112,21 @@ void greska(cvor *cv) {
 }
 
 void spremi_kontekst() { // realno treba samo R5
-	out << " PUSH R0\n";
-	out << " PUSH R1\n";
-	out << " PUSH R2\n";
-	out << " PUSH R3\n";
-	out << " PUSH R4\n";
+	//out << " PUSH R0\n";
+	//out << " PUSH R1\n";
+	//out << " PUSH R2\n";
+	//out << " PUSH R3\n";
+	//out << " PUSH R4\n";
 	out << " PUSH R5\n";
 }
 
 void obnovi_kontekst() {
 	out << " POP R5\n";
-	out << " POP R4\n";
-	out << " POP R3\n";
-	out << " POP R2\n";
-	out << " POP R1\n";
-	out << " POP R0\n";
+	//out << " POP R4\n";
+	//out << " POP R3\n";
+	//out << " POP R2\n";
+	//out << " POP R1\n";
+	//out << " POP R0\n";
 }
 
 string veliko(string ime) {
@@ -137,6 +138,10 @@ string veliko(string ime) {
 
 vector <int> konstante;
 vector <pair <pair <string, int>, bool> > post_varijable;
+
+bool ne_ispisuj = 0;
+map <string, int> je_polje;
+map <string, vector <string> > imena_parametara_fje;
 
 void povecaj_post_varijable() {
 	for(pair <pair <string, int>, bool> p : post_varijable) {
@@ -252,19 +257,39 @@ void primarni_izraz(cvor *cv) {
 		else kraj(cv);
 		// TODO ak su polja ovdje ne bu dobro
 		// mozda treba pripazit ak je funkcija
-		if(odmak_na_stogu_lok[ime].size()) {
-			out << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
-			out << " SUB R5, R0, R0\n";
-			out << " LOAD R0, (R0)\n";
-			out << " PUSH R0\n";
-		}
-		else if(postoji_glob[ime]) {
-			out << " LOAD R0, (KONST_" << veliko(ime) << ")\n";
-			out << " PUSH R0\n";
-		}
-		else {
-			//out << "varijabla " << ime << " nije deklarirana ili je ime funkcije?\n";
-			ime_fje = ime;
+		if(!ne_ispisuj) {
+			int kolko = je_polje[ime] ? je_polje[ime] : 1;
+			if(odmak_na_stogu_lok[ime].size()) {
+				out << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
+				out << " SUB R5, R0, R0\n";
+				out << " LOAD R0, (R0)\n";
+				out << " PUSH R0\n";
+				if(kolko > 1) {
+					out << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
+					out << " SUB R5, R0, R0\n";
+					for(int i = 1; i < kolko; i++) {
+						out << " SUB R0, 4, R0\n";
+						out << " LOAD R1, (R0)\n";
+						out << " PUSH R1\n";
+					}
+				}
+			}
+			else if(postoji_glob[ime]) {
+				out << " LOAD R0, (KONST_" << veliko(ime) << ")\n";
+				out << " PUSH R0\n";
+				if(kolko > 1) {
+					out << " MOVE KONST_" << veliko(ime) << ", R0\n";
+					for(int i = 1; i < kolko; i++) {
+						out << " ADD R0, 4, R0\n";
+						out << " LOAD R1, (R0)\n";
+						out << " PUSH R1\n";
+					}
+				}
+			}
+			else {
+				//out << "varijabla " << ime << " nije deklarirana ili je ime funkcije?\n";
+				ime_fje = ime;
+			}
 		}
 	}
 	else if(dj[0] == "BROJ") {
@@ -341,14 +366,16 @@ void postfiks_izraz(cvor *cv) {
 		cv->djeca[1]->uniformni_znak == "L_UGL_ZAGRADA" &&
 		cv->djeca[2]->uniformni_znak == "<izraz>" &&
 		cv->djeca[3]->uniformni_znak == "D_UGL_ZAGRADA") {
+		ne_ispisuj = 1;
 		postfiks_izraz(cv->djeca[0]);
+		ne_ispisuj = 0;
 		if (!(cv->djeca[0]->tip >= 5 && cv->djeca[0]->tip <= 8)) {
 			kraj(cv);
 		}
 		izraz(cv->djeca[2]);
 		//
 		out << " POP R0\n";
-		out << " POP R1\n";
+		//out << " POP R1\n";
 		string ime = cv -> djeca[0] -> djeca[0] -> djeca[0] -> jedinka;
 		if(odmak_na_stogu_lok[ime].size()) {
 			out << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R1\n";
@@ -415,10 +442,12 @@ void postfiks_izraz(cvor *cv) {
 		cv->djeca[3]->uniformni_znak == "D_ZAGRADA") {
 		spremi_kontekst(); // da ne zezne parametre
 		postfiks_izraz(cv->djeca[0]);
+		out << " SUB R7, 4, R7\n"; //
 		lista_argumenata(cv->djeca[2]);
 		cvor *tr = cv;
 		while(tr -> uniformni_znak == "<postfiks_izraz>") tr = tr -> djeca[0];
 		string ime;
+		int dalje = 0;
 		if(tr -> djeca[0] -> uniformni_znak == "IDN") { // trebalo bi uvijek vrijedit
 			ime = tr -> djeca[0] -> jedinka;
 			//out << " MOVE " << (int)(cv -> djeca[2] -> tipovi).size() << ", R0\n"; // broj parametara
@@ -428,10 +457,10 @@ void postfiks_izraz(cvor *cv) {
 				REP(i, (int)(cv -> djeca[2] -> tipovi).size()) {
 					if(!ide_implicitna_pretvorba((cv -> djeca[2] -> tipovi)[i], deklaracije[ime].back().second.first[i])) kraj(cv);
 					// kopiranje argumenata nakon povratne vrijednosti
-					out << " ADD R7, %D " << i * 4 << ", R0\n";
-					out << " LOAD R1, (R0)\n";
-					out << " SUB R7, %D " << ((int)(cv -> djeca[2] -> tipovi).size() - i + 1) * 4 << ", R0\n";
-					out << " STORE R1, (R0)\n";
+					//out << " ADD R7, %D " << i * 4 << ", R0\n";
+					//out << " LOAD R1, (R0)\n";
+					//out << " SUB R7, %D " << ((int)(cv -> djeca[2] -> tipovi).size() - i + 1) * 4 << ", R0\n";
+					//out << " STORE R1, (R0)\n";
 				}
 				cv -> tip = deklaracije[ime].back().second.second;
 			}
@@ -440,20 +469,25 @@ void postfiks_izraz(cvor *cv) {
 				REP(i, (int)(cv -> djeca[2] -> tipovi).size()) {
 					if(!ide_implicitna_pretvorba((cv -> djeca[2] -> tipovi)[i], deklaracija_funkcije[ime].first[i])) kraj(cv);
 					// kopiranje argumenata nakon povratne vrijednosti
-					out << " ADD R7, %D " << i * 4 << ", R0\n";
-					out << " LOAD R1, (R0)\n";
-					out << " SUB R7, %D " << ((int)(cv -> djeca[2] -> tipovi).size() - i + 1) * 4 << ", R0\n";
-					out << " STORE R1, (R0)\n";
+					//out << " ADD R7, %D " << i * 4 << ", R0\n";
+					//out << " LOAD R1, (R0)\n";
+					//out << " SUB R7, %D " << ((int)(cv -> djeca[2] -> tipovi).size() - i + 1) * 4 << ", R0\n";
+					//out << " STORE R1, (R0)\n";
 				}
 				cv -> tip = deklaracija_funkcije[ime].second;
 			}
 			else kraj(cv);
+			for(string s : imena_parametara_fje[ime]) {
+				//odmak_na_stogu_lok[s].back() += dalje;
+				if(je_polje[s] > 1) dalje += je_polje[s] - 1;
+			}
 		}
 		else kraj(cv);
 		cv->l_izraz = 0;
+		out << " ADD R7, %D " << ((int)(cv -> djeca[2] -> tipovi).size() + 1 + dalje) * 4 << ", R7\n"; //
 		out << " SUB R7, 4, R5\n";
 		out << " CALL F_" << veliko(ime) << "\n";
-		REP(i, (int)(cv -> djeca[2] -> tipovi).size()) out << " POP R0\n";
+		//REP(i, (int)(cv -> djeca[2] -> tipovi).size()) out << " POP R0\n";
 		obnovi_kontekst();
 		//out << (cv -> tip) << endl;
 		if(cv -> tip != 12) out << " PUSH R6\n";
@@ -1420,6 +1454,7 @@ void definicija_funkcije(cvor *cv) {
 		ime_tipa(cv -> djeca[0]);
 		if(cv -> djeca[0] -> tip == 3 || cv -> djeca[0] -> tip == 4) kraj(cv);
 		string ime = cv -> djeca[1] -> jedinka; // ovo bi trebalo bit ime, ali svojstvo ime je zapravo jednika
+		imena_parametara_fje[ime] = vector <string>();
 		out << "F_" << veliko(ime) << "\n";
 		if(definirana_funkcija[ime]) kraj(cv);
 		if(deklarirana_funkcija[ime]) {
@@ -1436,10 +1471,11 @@ void definicija_funkcije(cvor *cv) {
 		ime_tipa(cv -> djeca[0]);
 		if(cv -> djeca[0] -> tip == 3 || cv -> djeca[0] -> tip == 4) kraj(cv);
 		string ime = cv -> djeca[1] -> jedinka; // ovo bi trebalo bit ime, ali svojstvo ime je zapravo jednika
+		imena_parametara_fje[ime] = vector <string>();
 		out << "F_" << veliko(ime) << "\n";
 		if(definirana_funkcija[ime]) kraj(cv);
 		lista_parametara(cv -> djeca[3]);
-		out << " SUB R7, %D " << 4 * (int)(cv -> djeca[3] -> tipovi).size() << ", R7\n";
+		out << " SUB R7, %D " << 4 * ((int)(cv -> djeca[3] -> tipovi).size() + 10) << ", R7\n"; // hmm
 		if(deklarirana_funkcija[ime]) {
 			if(!vektori_jednaki(cv -> djeca[3] -> tipovi, deklaracija_funkcije[ime].first) || cv -> djeca[0] -> tip != deklaracija_funkcije[ime].second) kraj(cv);
 		}
@@ -1450,12 +1486,15 @@ void definicija_funkcije(cvor *cv) {
 		tipovi_povratnih_vrijednosti.push_back(cv -> djeca[0] -> tip);
 		REP(i, (int)(cv -> djeca[3] -> tipovi).size()) { // dodavanje parametara u mapu varijabli za sljedeci blok
 			varijable[(cv -> djeca[3] -> imena)[i]].push_back(make_pair(br_bloka + 1, (cv -> djeca[3] -> tipovi)[i]));
+			imena_parametara_fje[ime].push_back((cv -> djeca[3] -> imena)[i]);
 			odmak_na_stogu_lok[(cv -> djeca[3] -> imena)[i]].push_back(tr_odmak);
 			tr_odmak++;
 		}
 		slozena_naredba(cv -> djeca[5]);
 	}
 	else greska(cv);
+	out << " MOVE R5, R7\n"; // ako void nema rijec return
+	out << " RET\n";
 	tipovi_povratnih_vrijednosti.pop_back();
 	tr_odmak = 1; // dodano da se resetira odmak
 }
@@ -1545,10 +1584,83 @@ void init_deklarator(cvor *cv) {
 		cv -> djeca[0] -> ntip = cv -> ntip;
 		izravni_deklarator(cv -> djeca[0]);
 		if(br_bloka) { // dodan if da ne ispisuje komande izvan funkcija
-			inicijalizator(cv -> djeca[2]);
-			out << " POP R0\n";
-			out << " POP R1\n";
-			out << " PUSH R0\n";
+			cvor *tr = cv -> djeca[2];
+			if((int)(tr -> djeca).size() == 1) {
+				while(tr -> uniformni_znak != "<primarni_izraz>") tr = tr -> djeca[0];
+				if(tr -> djeca[0] -> uniformni_znak != "BROJ" && tr -> djeca[0] -> uniformni_znak != "ZNAK") {
+					string niz_znakova = tr -> djeca[0] -> jedinka;
+					int br = 0, vr = 0;
+					out << " MOVE %D " << 4 * odmak_na_stogu_lok[cv -> djeca[0] -> djeca[0] -> jedinka].back() << ", R0\n";
+					out << " SUB R5, R0, R0\n";
+					for(int i = 1; i < (int)niz_znakova.size() - 1; i++) {
+						if(niz_znakova[i] != '\\') vr = niz_znakova[i];
+						else if(niz_znakova[i + 1] == 't') vr = '\t';
+						else if(niz_znakova[i + 1] == 'n') vr = '\n';
+						else if(niz_znakova[i + 1] == '0') vr = '\0';
+						else if(niz_znakova[i + 1] == '\'') vr = '\'';
+						else if(niz_znakova[i + 1] == '\"') vr = '\"';
+						else if(niz_znakova[i + 1] == '\\') vr = '\\';
+						out << " MOVE %D " << (int)vr << ", R1\n";
+						out << " STORE R1, (R0)\n";
+						out << " SUB R0, 4, R0\n";
+						br++;
+					}
+					vr = (int)'\0';
+					out << " MOVE %D " << (int)vr << ", R1\n";
+					out << " STORE R1, (R0)\n";
+					
+				}
+				else {
+					inicijalizator(cv -> djeca[2]);
+					out << " POP R0\n";
+					out << " POP R1\n";
+					out << " PUSH R0\n";
+				}
+			}
+			else {
+				string ime = cv -> djeca[0] -> djeca[0] -> jedinka;
+				tr = tr -> djeca[1];
+				int brojac = 0;
+				vector <char> ini;
+				do {
+					cvor *tr_izraz;
+					if((int)(tr -> djeca).size() == 1) tr_izraz = tr -> djeca[0];
+					else tr_izraz = tr -> djeca[2];
+					while(tr_izraz -> uniformni_znak != "<primarni_izraz>") tr_izraz = tr_izraz -> djeca[0];
+					int vr = 0;
+					if(tr_izraz -> djeca[0] -> uniformni_znak == "BROJ") {
+						string sbroj = tr_izraz -> djeca[0] -> jedinka;
+						try {
+							vr = stoi(sbroj, nullptr, (sbroj.size() >= 2 && (sbroj[1] == 'x' || sbroj[1] == 'X')) ? 0 : 10);
+						}
+						catch(...) {
+							kraj(cv);
+						}
+					}
+					else if(tr_izraz -> djeca[0] -> uniformni_znak == "ZNAK") {
+						string znak = tr_izraz -> djeca[0] -> jedinka;
+						if((int)znak.size() == 2) vr = 0;
+						else if((int)znak.size() == 3) vr = znak[1];
+						else if(znak[2] == 't') vr = '\t';
+						else if(znak[2] == 'n') vr = '\n';
+						else if(znak[2] == '0') vr = '\0';
+						else if(znak[2] == '\'') vr = '\'';
+						else if(znak[2] == '\"') vr = '\"';
+						else if(znak[2] == '\\') vr = '\\';
+					}
+					ini.push_back(vr);
+					tr = tr -> djeca[0];
+					brojac++;
+				} while(tr -> uniformni_znak != "<izraz_pridruzivanja>");
+				reverse(ini.begin(), ini.end());
+				out << " MOVE %D " << 4 * odmak_na_stogu_lok[ime].back() << ", R0\n";
+				out << " SUB R5, R0, R0\n";
+				REP(i, (int)ini.size()) {
+					out << " MOVE %D " << (int)ini[i] << ", R1\n";
+					out << " STORE R1, (R0)\n";
+					out << " SUB R0, 4, R0\n";
+				}
+			}
 			// TODO ifaj i pitaj ak je niz pa prekopiraj
 		}
 		else {
@@ -1556,7 +1668,19 @@ void init_deklarator(cvor *cv) {
 			if((int)(tr -> djeca).size() == 1) {
 				while(tr -> uniformni_znak != "<primarni_izraz>") tr = tr -> djeca[0];
 				if(tr -> djeca[0] -> uniformni_znak != "BROJ" && tr -> djeca[0] -> uniformni_znak != "ZNAK") {
-					out << "globalna varijabla definirana s ne konstantom... Joj\n"; // TODO implementiraj za niz znakova za nizove
+					string niz_znakova = tr -> djeca[0] -> jedinka;
+					int br = 0, vr = 0;
+					for(int i = 1; i < (int)niz_znakova.size() - 1; i++) {
+						if(niz_znakova[i] != '\\') vr = niz_znakova[i];
+						else if(niz_znakova[i + 1] == 't') vr = '\t';
+						else if(niz_znakova[i + 1] == 'n') vr = '\n';
+						else if(niz_znakova[i + 1] == '0') vr = '\0';
+						else if(niz_znakova[i + 1] == '\'') vr = '\'';
+						else if(niz_znakova[i + 1] == '\"') vr = '\"';
+						else if(niz_znakova[i + 1] == '\\') vr = '\\';
+						glob_vr.back().second[br] = vr;
+						br++;
+					}
 				}
 				else if(tr -> djeca[0] -> uniformni_znak == "BROJ"){
 					string sbroj = tr -> djeca[0] -> jedinka;
@@ -1570,7 +1694,7 @@ void init_deklarator(cvor *cv) {
 					glob_vr.back().second[0] = vr;
 				}
 				else {
-					int vr;
+					int vr = 0;
 					string znak = tr-> djeca[0] -> jedinka;
 					if((int)znak.size() == 2) vr = 0;
 					else if((int)znak.size() == 3) vr = znak[1];
@@ -1690,6 +1814,7 @@ void izravni_deklarator(cvor *cv) {
 			odmak_na_stogu_lok[ime].push_back(tr_odmak);
 			tr_odmak += broj; // TODO problem je kad je niz u scopeu, resetiraj na izlazu iz definicije funkcije
 		}
+		je_polje[ime] = broj;
 	}
 	else if(dj[2] == "KR_VOID") {
 		cv -> tip = 10; // skroz nepotrebno
